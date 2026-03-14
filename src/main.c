@@ -65,7 +65,7 @@ static void init_graphics(void)
     // Mode 2 args: MODE, OPTIONS, CONFIG, PLANE, BEGIN, END
     // OPTIONS: bit3=1 (16x16 tiles), bit[2:0]=2 (4-bit color index) => 0b1010 = 10
     // Plane 0 = background fill layer (behind sprite plane 1)
-    if (xreg_vga_mode(2, 10, STAR_MAP_CONFIG, 0, 0, 0) < 0) {
+    if (xreg_vga_mode(2, 0x02, STAR_MAP_CONFIG, 0, 0, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
