@@ -22,4 +22,5 @@ rp6502_executable(CosmicArc
 target_sources(CosmicArc PRIVATE
     src/main.c
     src/mothership.c
+    src/starfield.c
 )
