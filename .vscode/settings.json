@@ -1,5 +1,7 @@
 {
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "cmake.configureSettings": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+    },
     "cmake.showSystemKits": false,
     "cmake.options.advanced": {
         "launch": {

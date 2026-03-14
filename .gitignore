@@ -6,3 +6,4 @@ Sprites
 .DS_Store
 .venv
 /releases
+.vscode/c_cpp_properties.json

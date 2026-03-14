@@ -186,6 +186,10 @@ class SerialPort:
         if self._is_posix:
             total_written = 0
             while total_written < len(data):
+                # Wait for device to be ready for writing
+                _, ready_to_write, _ = select.select([], [self._fd], [], RESPONSE_TIMEOUT)
+                if not ready_to_write:
+                    raise TimeoutError("Timeout: device not ready for writing")
                 written = os.write(self._fd, data[total_written:])
                 total_written += written
         else:
@@ -257,10 +261,17 @@ class SerialPort:
         duration = 0.1  # works down to 300bps
         if self._is_posix:
             try:
-                fcntl.ioctl(self._fd, 0x5427)  # TIOCSBRK
-                time.sleep(duration)
-            finally:
-                fcntl.ioctl(self._fd, 0x5428)  # TIOCCBRK
+                # TIOCSBRK / TIOCCBRK for macOS are 0x2000747b / 0x2000747a
+                import fcntl
+                try:
+                    fcntl.ioctl(self._fd, 0x2000747b) # TIOCSBRK
+                    time.sleep(duration)
+                    fcntl.ioctl(self._fd, 0x2000747a) # TIOCCBRK
+                except Exception:
+                    # Fallback to standard POSIX break
+                    termios.tcsendbreak(self._fd, 0)
+            except Exception:
+                pass
         else:
             try:
                 kernel32.EscapeCommFunction(self._handle, 8)  # SETBREAK
@@ -292,7 +303,13 @@ class Console:
         if platform.system() == "Windows":
             return "COM1"
         elif platform.system() == "Darwin":
-            return "/dev/cu.usbmodem"
+            import glob
+
+            # Darwin (macOS) usbmodem devices. Prioritize tty over cu.
+            devices = sorted(glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/cu.usbmodem*"))
+            if devices:
+                return devices[0]
+            return "/dev/tty.usbmodem"
         elif platform.system() == "Linux":
             return "/dev/ttyACM0"
         else:
