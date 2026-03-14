@@ -1,64 +1,78 @@
-# RP6502 VSCode Scaffolding for LLVM-MOS
+# Cosmic Arc for RP6502
 
-This is scaffolding for a new Picocomputer 6502 software project.
+A modern reimagining of the 1982 Atari 2600 classic **Cosmic Arc** by Imagic, rewritten for the **Picocomputer 6502 (RP6502)** using the LLVM-MOS SDK.
 
-### LLVM PATH notes
+## Project Goal
+This project serves as a template and development bed for creating a high-fidelity version of Cosmic Arc. Leveraging the RP6502's advanced graphics capabilities (sprites, 16-bit color, and larger memory), we aim to move beyond the technical limitations of the original Atari 2600 hardware while preserving the core gameplay loop:
+- Defending the mothership from planetary defenses.
+- Deploying the shuttle to rescue planetary inhabitants.
+- Navigating the starfield.
 
-LLVM-MOS must be in your PATH. However, this may conflict with other LLVM
-installations, like the one that comes with your operating system.
-In that case, you can adjust the path for only CMake with a VSCode setting.
-Add a file `.vscode/settings.json` with the following contents. Adjust the
-path for where you installed LLVM-MOS.
-```
-{
-    "cmake.environment": {
-        "PATH": "~/llvm-mos/bin:${env:PATH}"
-    }
-}
-```
+## Prerequisites
 
-### Linux Tools Install:
- * [VSCode](https://code.visualstudio.com/). This has its own installer.
- * An install of [LLVM-MOS](https://llvm-mos.org/wiki/Welcome).
-   See PATH notes above.
- * The following tools installed from your package manager:
-    * `sudo apt install cmake python3 pip git build-essential`
-    * `pip install pyserial`
+### 1. LLVM-MOS SDK
+The project requires the [LLVM-MOS SDK](https://llvm-mos.org/wiki/Welcome) to be installed and in your `PATH`.
+- **VSCode Tip:** If LLVM-MOS conflicts with your system LLVM, add the following to `.vscode/settings.json`:
+  ```json
+  {
+      "cmake.environment": {
+          "PATH": "~/llvm-mos/bin:${env:PATH}"
+      }
+  }
+  ```
 
-### Windows Tools Install:
- * [VSCode](https://code.visualstudio.com/). This has its own installer.
- * An install of [LLVM-MOS](https://llvm-mos.org/wiki/Welcome).
-   See PATH notes above.
- * Install python by typing `python3` which will launch the Microsoft Store
-   where you start the install. If python runs, this has already been done,
-   exit python with Ctrl-Z plus Return.
- * Install the python serial library with `pip install pyserial`.
- * `winget install -e --id Kitware.CMake`.
- * `winget install -e --id GnuWin32.Make`.
-    Add "C:\Program Files (x86)\GnuWin32\bin" to your path.
- * `winget install -e --id Git.Git`.
+### 2. Python Environment
+Python 3.9+ is required for the build tools and asset pipeline.
+- Create and activate a virtual environment:
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate  # macOS/Linux
+  # or
+  .venv\Scripts\activate     # Windows
+  ```
+- Install dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-### Getting Started:
-Go to the [GitHub template](https://github.com/picocomputer/vscode-llvm-mos)
-and select "Use this template" then "Create a new repository". GitHub will
-make a clean project for you to start with. Then you can download the
-repository and open the files.
+## Setup & Installation
 
-```
-$ git clone [path_to_github]
-$ cd [to_where_it_cloned]
-$ code .
-```
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/picocomputer/vscode-llvm-mos-cosmic-arc
+   cd vscode-llvm-mos-cosmic-arc
+   code .
+   ```
+2. **Configure CMake:**
+   When prompted by the VSCode CMake extension, select **[Unspecified]** for the kit, or let it detect the LLVM-MOS toolchain.
 
-Install the extensions and choose the default or obvious choice if VSCode
-prompts you. Choose "[Unspecified]" for the CMake kit.
+## Building & Running
 
-"Start Debugging" (F5) will build your project and upload it to the
-Picocomputer over a USB cable plugged into the Pico VGA. There is no debugger
-for the 6502; this process will exit immediately after the upload.
-If the default communications device doesn't work, edit ".rp6502" in the
-project root folder. This file will be created the first time you
-"Start Debugging" and will be ignored by git.
+- **Build & Upload:** Press **F5** in VSCode. This will:
+  1. Compile the C/ASM source code using LLVM-MOS.
+  2. Pack the assets into an RP6502 ROM.
+  3. Upload the ROM to the Picocomputer via USB.
+- **Serial Connection:** The `tools/rp6502.py` script manages the connection. The first time you run the project, it will create a `.rp6502` configuration file. Adjust the `device` path if the auto-detection fails.
 
-Edit CMakeLists.txt to add new source and asset files. It's
-pretty normal C/ASM development from here on.
+## Asset Pipeline
+
+This project includes custom tools for preparing game assets:
+
+- **`tools/convert_sprite.py`**: Converts PNG images into RP6502-compatible binary formats.
+  - Supports **Sprite** mode (16-bit RGB555).
+  - Supports **Tile** mode (4-bit indexed color).
+  - Usage: `python tools/convert_sprite.py Sprites/my_sprite.png -o build/my_sprite.bin --mode sprite`
+
+- **`Sprites/`**: Contains original artwork, including:
+  - `CosmicArc.aseprite`: Source artwork (Aseprite format).
+  - `CosmicArc.png`: Exported sprite sheet.
+
+## Project Structure
+- `src/`: C and Assembly source code.
+- `tools/`: Python scripts for asset conversion and device communication.
+- `Sprites/`: Raw and exported graphical assets.
+- `CMakeLists.txt`: Build configuration and asset definitions.
+
+## License
+This project is licensed under the terms specified in the `LICENSE` file.
+The original "Cosmic Arc" gameplay and branding are the property of their respective owners. This is a non-commercial fan project.
