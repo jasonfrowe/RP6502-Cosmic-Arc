@@ -10,6 +10,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(CosmicArc)
 rp6502_asset(CosmicArc 0x10000 images/CosmicArc.bin)
+rp6502_asset(CosmicArc 0x12000 images/StarMap.bin)
+rp6502_asset(CosmicArc 0x12300 images/StarMap_TileMap.bin)
 rp6502_asset(CosmicArc help src/help.txt)
 
 rp6502_executable(CosmicArc
