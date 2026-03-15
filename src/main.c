@@ -5,6 +5,7 @@
 #include "starfield.h"
 #include "mothership.h"
 #include "laser.h"
+#include "asteroid.h"
 #include "palette.h"
 #include "input.h"
 
@@ -111,6 +112,7 @@ int main(void)
 
     init_graphics();
     laser_init();
+    asteroid_init();
     init_input_system();
 
     while (true) {
@@ -131,6 +133,7 @@ int main(void)
         starfield_update();
         mothership_update();
         laser_update();
+        asteroid_update();
 
         }
     return 0;

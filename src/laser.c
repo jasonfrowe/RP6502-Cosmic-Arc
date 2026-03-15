@@ -7,10 +7,6 @@
 #define LASER_SPEED      6
 #define LASER_HALF_SIZE  16   // 32x32 sprite half-width
 
-// Mothership center on screen
-#define MOTHERSHIP_X     160
-#define MOTHERSHIP_Y     98
-
 // Frame 0: left/right (horizontal beam)
 // Frame 1: up/down   (vertical beam)
 // Each frame: 32 * 32 * 2 bytes (16-bit RGB555)

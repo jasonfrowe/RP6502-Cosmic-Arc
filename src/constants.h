@@ -45,7 +45,12 @@
 
 extern unsigned MAIN_MAP_CONFIG;  // Configuration byte for Main Map tile asset
 extern unsigned LASER_CONFIG;     // Configuration struct address for laser sprite
+extern unsigned ASTEROID_CONFIG;  // Configuration struct address for asteroid sprite
 
 #define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
+
+// Mothership center on screen
+#define MOTHERSHIP_X     160
+#define MOTHERSHIP_Y     98
 
 #endif // CONSTANTS_H
