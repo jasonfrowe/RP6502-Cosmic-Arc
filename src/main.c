@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "constants.h"
 #include "starfield.h"
+#include "mothership.h"
 #include "palette.h"
 
 unsigned MAIN_MAP_CONFIG;
@@ -26,6 +27,7 @@ static void init_graphics(void)
 
     // Start with one lit star color and rotate it over time.
     starfield_init();
+    mothership_init();
 
     MAIN_MAP_CONFIG = SPRITE_DATA_END;
 
@@ -87,6 +89,7 @@ int main(void)
         vsync_last = RIA.vsync;
 
         starfield_update();
+        mothership_update();
 
         }
     return 0;
