@@ -6,6 +6,7 @@
 
 #define LASER_SPEED      6
 #define LASER_HALF_SIZE  16   // 32x32 sprite half-width
+#define LASER_COOLDOWN   20  // frames before another shot is allowed
 
 // Frame 0: left/right (horizontal beam)
 // Frame 1: up/down   (vertical beam)
@@ -17,7 +18,8 @@ static int16_t laser_x;
 static int16_t laser_y;
 static int8_t  laser_dx;
 static int8_t  laser_dy;
-static bool    laser_active = false;
+static bool    laser_active   = false;
+static uint8_t laser_cooldown = 0;
 
 static void write_laser_pos(int16_t x, int16_t y)
 {
@@ -25,9 +27,17 @@ static void write_laser_pos(int16_t x, int16_t y)
     xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, y_pos_px, y);
 }
 
+static void deactivate_laser(void)
+{
+    laser_active   = false;
+    laser_cooldown = LASER_COOLDOWN;
+    write_laser_pos(-64, -64);
+}
+
 void laser_init(void)
 {
-    laser_active = false;
+    laser_active   = false;
+    laser_cooldown = 0;
     laser_x = -64;
     laser_y = -64;
     write_laser_pos(-64, -64);
@@ -35,7 +45,7 @@ void laser_init(void)
 
 void laser_fire(LaserDirection dir)
 {
-    if (laser_active || dir == LASER_NONE)
+    if (laser_active || laser_cooldown > 0 || dir == LASER_NONE)
         return;
 
     laser_active = true;
@@ -71,6 +81,9 @@ void laser_fire(LaserDirection dir)
 
 void laser_update(void)
 {
+    if (laser_cooldown > 0)
+        --laser_cooldown;
+
     if (!laser_active)
         return;
 
@@ -80,8 +93,7 @@ void laser_update(void)
     // Deactivate once the sprite is fully off any edge
     if (laser_x > SCREEN_WIDTH || laser_x < -32 ||
         laser_y > SPACE_HEIGHT || laser_y < -32) {
-        laser_active = false;
-        write_laser_pos(-64, -64);
+        deactivate_laser();
         return;
     }
 
@@ -95,8 +107,7 @@ bool laser_check_hit(int16_t x, int16_t y, uint8_t w, uint8_t h)
 
     if ((int16_t)(x + w) > laser_x && x < laser_x + 32 &&
         (int16_t)(y + h) > laser_y && y < laser_y + 32) {
-        laser_active = false;
-        write_laser_pos(-64, -64);
+        deactivate_laser();
         return true;
     }
     return false;
