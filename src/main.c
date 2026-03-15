@@ -8,6 +8,7 @@
 #include "asteroid.h"
 #include "palette.h"
 #include "input.h"
+#include "score.h"
 
 unsigned MAIN_MAP_CONFIG;
 unsigned MOTHERSHIP_CONFIG;
@@ -113,6 +114,7 @@ int main(void)
     init_graphics();
     laser_init();
     asteroid_init();
+    score_init();
     init_input_system();
 
     while (true) {
@@ -133,7 +135,7 @@ int main(void)
         starfield_update();
         mothership_update();
         laser_update();
-        asteroid_update();
+        if (asteroid_update()) score_add(10);
 
         }
     return 0;

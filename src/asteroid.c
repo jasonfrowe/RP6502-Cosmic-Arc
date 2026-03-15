@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "constants.h"
 #include "asteroid.h"
+#include "laser.h"
 
 #define ASTEROID_SIZE 8
 #define ASTEROID_SPEED 2
@@ -10,6 +11,9 @@
 #define ASTEROID_FRAME_SIZE (ASTEROID_SIZE * ASTEROID_SIZE * 2)
 #define ASTEROID_ANIM_TICKS 6
 #define ASTEROID_SPAWN_DELAY 45
+
+#define MOTHERSHIP_WIDTH 128
+#define MOTHERSHIP_HEIGHT 24
 
 static int16_t asteroid_x;
 static int16_t asteroid_y;
@@ -47,6 +51,24 @@ static void deactivate_asteroid(void)
     asteroid_dx = 0;
     asteroid_dy = 0;
     write_asteroid_pos(-32, -32);
+}
+
+static bool asteroid_hits_mothership(void)
+{
+    int16_t asteroid_left = asteroid_x;
+    int16_t asteroid_right = asteroid_x + ASTEROID_SIZE;
+    int16_t asteroid_top = asteroid_y;
+    int16_t asteroid_bottom = asteroid_y + ASTEROID_SIZE;
+
+    int16_t mothership_left = MOTHERSHIP_X - (MOTHERSHIP_WIDTH / 2);
+    int16_t mothership_right = MOTHERSHIP_X + (MOTHERSHIP_WIDTH / 2);
+    int16_t mothership_top = MOTHERSHIP_Y - (MOTHERSHIP_HEIGHT / 2);
+    int16_t mothership_bottom = MOTHERSHIP_Y + (MOTHERSHIP_HEIGHT / 2);
+
+    return (asteroid_left < mothership_right) &&
+           (asteroid_right > mothership_left) &&
+           (asteroid_top < mothership_bottom) &&
+           (asteroid_bottom > mothership_top);
 }
 
 static void spawn_asteroid(void)
@@ -95,14 +117,14 @@ void asteroid_init(void)
     deactivate_asteroid();
 }
 
-void asteroid_update(void)
+bool asteroid_update(void)
 {
     if (!asteroid_active) {
         if (++asteroid_spawn_tick >= ASTEROID_SPAWN_DELAY) {
             asteroid_spawn_tick = 0;
             spawn_asteroid();
         }
-        return;
+        return false;
     }
 
     asteroid_x += asteroid_dx;
@@ -114,11 +136,22 @@ void asteroid_update(void)
         write_asteroid_frame(asteroid_frame);
     }
 
+    if (laser_check_hit(asteroid_x, asteroid_y, ASTEROID_SIZE, ASTEROID_SIZE)) {
+        deactivate_asteroid();
+        return true;
+    }
+
+    if (asteroid_hits_mothership()) {
+        deactivate_asteroid();
+        return false;
+    }
+
     if (asteroid_x > SCREEN_WIDTH || asteroid_x < -ASTEROID_SIZE ||
         asteroid_y > SPACE_HEIGHT || asteroid_y < -ASTEROID_SIZE) {
         deactivate_asteroid();
-        return;
+        return false;
     }
 
     write_asteroid_pos(asteroid_x, asteroid_y);
+    return false;
 }

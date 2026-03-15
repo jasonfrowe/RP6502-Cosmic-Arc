@@ -27,6 +27,7 @@ target_sources(CosmicArc PRIVATE
     src/mothership.c
     src/laser.c
     src/asteroid.c
+    src/score.c
     src/input.c
 )
 

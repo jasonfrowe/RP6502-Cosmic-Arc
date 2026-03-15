@@ -87,3 +87,17 @@ void laser_update(void)
 
     write_laser_pos(laser_x, laser_y);
 }
+
+bool laser_check_hit(int16_t x, int16_t y, uint8_t w, uint8_t h)
+{
+    if (!laser_active)
+        return false;
+
+    if ((int16_t)(x + w) > laser_x && x < laser_x + 32 &&
+        (int16_t)(y + h) > laser_y && y < laser_y + 32) {
+        laser_active = false;
+        write_laser_pos(-64, -64);
+        return true;
+    }
+    return false;
+}
