@@ -43,9 +43,10 @@
 #define GAMEPAD_INPUT   0xFF78  // 40 bytes for 4 gamepads
 #define KEYBOARD_INPUT  0xFFA0  // 32 bytes keyboard bitfield
 
-extern unsigned MAIN_MAP_CONFIG;  // Configuration byte for Main Map tile asset
-extern unsigned LASER_CONFIG;     // Configuration struct address for laser sprite
-extern unsigned ASTEROID_CONFIG;  // Configuration struct address for asteroid sprite
+extern unsigned MAIN_MAP_CONFIG;     // Configuration struct address for Main Map
+extern unsigned MOTHERSHIP_CONFIG;   // Configuration struct address for Mothership
+extern unsigned LASER_CONFIG;        // Configuration struct address for laser sprite
+extern unsigned ASTEROID_CONFIG;     // Configuration struct address for asteroid sprite
 
 #define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
 

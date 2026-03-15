@@ -117,14 +117,14 @@ void asteroid_init(void)
     deactivate_asteroid();
 }
 
-bool asteroid_update(void)
+AsteroidResult asteroid_update(void)
 {
     if (!asteroid_active) {
         if (++asteroid_spawn_tick >= ASTEROID_SPAWN_DELAY) {
             asteroid_spawn_tick = 0;
             spawn_asteroid();
         }
-        return false;
+        return ASTEROID_NONE;
     }
 
     asteroid_x += asteroid_dx;
@@ -138,20 +138,26 @@ bool asteroid_update(void)
 
     if (laser_check_hit(asteroid_x, asteroid_y, ASTEROID_SIZE, ASTEROID_SIZE)) {
         deactivate_asteroid();
-        return true;
+        return ASTEROID_LASER_HIT;
     }
 
     if (asteroid_hits_mothership()) {
         deactivate_asteroid();
-        return false;
+        return ASTEROID_MOTHERSHIP_HIT;
     }
 
     if (asteroid_x > SCREEN_WIDTH || asteroid_x < -ASTEROID_SIZE ||
         asteroid_y > SPACE_HEIGHT || asteroid_y < -ASTEROID_SIZE) {
         deactivate_asteroid();
-        return false;
+        return ASTEROID_NONE;
     }
 
     write_asteroid_pos(asteroid_x, asteroid_y);
-    return false;
+    return ASTEROID_NONE;
+}
+
+void asteroid_reset(void)
+{
+    deactivate_asteroid();
+    asteroid_spawn_tick = 0;
 }

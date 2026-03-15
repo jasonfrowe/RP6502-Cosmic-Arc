@@ -1,7 +1,14 @@
 #ifndef ASTEROID_H
 #define ASTEROID_H
 
+typedef enum {
+    ASTEROID_NONE = 0,
+    ASTEROID_LASER_HIT,
+    ASTEROID_MOTHERSHIP_HIT,
+} AsteroidResult;
+
 void asteroid_init(void);
-bool asteroid_update(void);
+void asteroid_reset(void);
+AsteroidResult asteroid_update(void);
 
 #endif // ASTEROID_H

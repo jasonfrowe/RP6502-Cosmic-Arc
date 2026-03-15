@@ -59,7 +59,7 @@ static void init_graphics(void)
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, x_wrap, false);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_wrap, false);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, x_pos_px, 0);
-    xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, 16);
+    xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, -176);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, width_tiles,  MAIN_MAP_WIDTH_TILES);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, height_tiles, MAIN_MAP_HEIGHT_TILES);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, xram_data_ptr,    MOTHERSHIP_MAP_TILEMAP_DATA); // tile ID grid
@@ -112,6 +112,7 @@ int main(void)
     xregn(0, 0, 2, 1, GAMEPAD_INPUT);
 
     init_graphics();
+    mothership_reset();
     laser_init();
     asteroid_init();
     score_init();
@@ -126,16 +127,26 @@ int main(void)
         // Get Input from Keyboard/Gamepad
         handle_input();
 
-        // Fire laser in the pressed direction (one at a time)
-        if      (is_action_pressed(0, ACTION_THRUST)) laser_fire(LASER_UP);
-        else if (is_action_pressed(0, ACTION_REVERSE_THRUST))  laser_fire(LASER_DOWN);
-        else if (is_action_pressed(0, ACTION_ROTATE_LEFT))  laser_fire(LASER_LEFT);
-        else if (is_action_pressed(0, ACTION_ROTATE_RIGHT)) laser_fire(LASER_RIGHT);
+        if (mothership_is_landed()) {
+            if      (is_action_pressed(0, ACTION_THRUST))         laser_fire(LASER_UP);
+            else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) laser_fire(LASER_DOWN);
+            else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    laser_fire(LASER_LEFT);
+            else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   laser_fire(LASER_RIGHT);
+        }
 
         starfield_update();
         mothership_update();
         laser_update();
-        if (asteroid_update()) score_add(10);
+
+        if (mothership_is_landed()) {
+            AsteroidResult result = asteroid_update();
+            if (result == ASTEROID_LASER_HIT)
+                score_add(10);
+            else if (result == ASTEROID_MOTHERSHIP_HIT) {
+                mothership_reset();
+                asteroid_reset();
+            }
+        }
 
         }
     return 0;
