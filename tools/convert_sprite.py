@@ -12,6 +12,10 @@ def rp6502_pack_tile_bpp4(p1, p2):
     return ((p1 & 0x0F) << 4) | (p2 & 0x0F)
     # return (p1 & 0x0F) | ((p2 & 0x0F) << 4) 
 
+def rp6502_pack_tile_bpp8(p):
+    # 8-bit tile mode stores one palette index per pixel.
+    return p & 0xFF
+
 def rp6502_rgb_sprite_bpp16(r, g, b, a):
     if a < 128:
         return 0
@@ -84,6 +88,27 @@ def convert_image(image_path, output_path, mode):
                                 
                                 # Pack the indices
                                 o.write(rp6502_pack_tile_bpp4(p1, p2).to_bytes(1, "little"))
+
+                    # === MODE: TILE8 (8-bit Index) ===
+                    elif mode == 'tile8':
+                        # Ensure we are using indices
+                        if im.mode != 'P':
+                            print("WARNING: 'tile8' mode requires an Indexed (Palette) PNG.")
+                            print("         Attempting to auto-quantize to 256 colors...")
+                            use_im = im.convert("P", palette=Image.ADAPTIVE, colors=256)
+                        else:
+                            use_im = im
+
+                        for y in range(sprite_size):
+                            for x in range(base_x, base_x + sprite_size):
+                                r, g, b, a = rgb_im.getpixel((x, y))
+
+                                if a < 128:
+                                    p = 0  # Force transparent/background index
+                                else:
+                                    p = use_im.getpixel((x, y))
+
+                                o.write(rp6502_pack_tile_bpp8(p).to_bytes(1, "little"))
                                 
                     # === MODE: SPRITE (16-bit Color) ===
                     else:
@@ -106,8 +131,8 @@ def main():
     parser = argparse.ArgumentParser(description="Convert images to RP6502 binary format.")
     parser.add_argument("input_file", help="Input PNG image.")
     parser.add_argument("-o", "--output", help="Output BIN file.")
-    parser.add_argument("--mode", choices=['sprite', 'tile', 'bitmap'], default='sprite', 
-                        help="Mode: 'sprite' (16-bit), 'tile' (4-bit indices), or 'bitmap' (8-bit).")
+    parser.add_argument("--mode", choices=['sprite', 'tile', 'tile8', 'bitmap'], default='sprite', 
+                        help="Mode: 'sprite' (16-bit), 'tile' (4-bit indices), 'tile8' (8-bit indices), or 'bitmap' (8-bit).")
 
     args = parser.parse_args()
 

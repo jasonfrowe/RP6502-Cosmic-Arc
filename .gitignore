@@ -7,3 +7,4 @@ Sprites
 .venv
 /releases
 .vscode/c_cpp_properties.json
+/old

@@ -9,10 +9,9 @@ project(CosmicArc C CXX ASM)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(CosmicArc)
-rp6502_asset(CosmicArc 0x10000 images/CosmicArc.bin)
-rp6502_asset(CosmicArc 0x12000 images/StarMap.bin)
-rp6502_asset(CosmicArc 0x12120 images/StarMap_TileMap.bin)
-rp6502_asset(CosmicArc 0x125D0 images/laser.bin)
+rp6502_asset(CosmicArc 0x10000 images/MainScreen_tiles.bin)
+rp6502_asset(CosmicArc 0x119C0 images/MainScreen_map.bin)
+rp6502_asset(CosmicArc 0x11E70 images/Mothership_map.bin)
 rp6502_asset(CosmicArc help src/help.txt)
 
 rp6502_executable(CosmicArc
@@ -22,6 +21,5 @@ rp6502_executable(CosmicArc
 
 target_sources(CosmicArc PRIVATE
     src/main.c
-    src/mothership.c
     src/starfield.c
 )
