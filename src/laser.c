@@ -9,7 +9,7 @@
 
 // Mothership center on screen
 #define MOTHERSHIP_X     160
-#define MOTHERSHIP_Y     82
+#define MOTHERSHIP_Y     98
 
 // Frame 0: left/right (horizontal beam)
 // Frame 1: up/down   (vertical beam)
@@ -83,7 +83,7 @@ void laser_update(void)
 
     // Deactivate once the sprite is fully off any edge
     if (laser_x > SCREEN_WIDTH || laser_x < -32 ||
-        laser_y > SCREEN_HEIGHT || laser_y < -32) {
+        laser_y > SPACE_HEIGHT || laser_y < -32) {
         laser_active = false;
         write_laser_pos(-64, -64);
         return;

@@ -11,6 +11,7 @@
 unsigned MAIN_MAP_CONFIG;
 unsigned MOTHERSHIP_CONFIG;
 unsigned LASER_CONFIG;
+unsigned ASTEROID_CONFIG;
 
 static void init_graphics(void)
 {
@@ -56,7 +57,7 @@ static void init_graphics(void)
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, x_wrap, false);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_wrap, false);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, x_pos_px, 0);
-    xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, 0);
+    xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, 16);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, width_tiles,  MAIN_MAP_WIDTH_TILES);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, height_tiles, MAIN_MAP_HEIGHT_TILES);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, xram_data_ptr,    MOTHERSHIP_MAP_TILEMAP_DATA); // tile ID grid
@@ -76,8 +77,16 @@ static void init_graphics(void)
     xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, log_size, LASER_SPRITE_LOG_SIZE);
     xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
+    ASTEROID_CONFIG = LASER_CONFIG + sizeof(vga_mode4_sprite_t);
+
+    xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, x_pos_px, 0);
+    xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, y_pos_px, 0);
+    xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, ASTEROID_DATA);
+    xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, log_size, 3); // 8x8 sprites  
+    xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
+
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(4, 0, LASER_CONFIG, 1, 1, 0, 0) < 0) {
+    if (xreg_vga_mode(4, 0, LASER_CONFIG, 2, 1, 0, SPACE_HEIGHT) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -87,7 +96,6 @@ static void init_graphics(void)
     printf("MAIN_MAP TILEMAP: 0x%04X - 0x%04X\n", MAIN_MAP_TILEMAP_DATA, MAIN_MAP_TILEMAP_DATA + MAIN_MAP_TILEMAP_SIZE);
     printf("MAIN_MAP_CONFIG: 0x%04X\n", MAIN_MAP_CONFIG);
     printf("MOTHERSHIP_CONFIG: 0x%04X\n", MOTHERSHIP_CONFIG);
-    laser_init();
 
 }
 
@@ -102,6 +110,7 @@ int main(void)
     xregn(0, 0, 2, 1, GAMEPAD_INPUT);
 
     init_graphics();
+    laser_init();
     init_input_system();
 
     while (true) {

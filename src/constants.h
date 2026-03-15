@@ -4,6 +4,7 @@
 // Screen dimensions
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
+#define SPACE_HEIGHT 192
 
 // Sprite data configuration
 #define SPRITE_DATA_START       0x0000U // Starting address in XRAM for sprite data
@@ -20,7 +21,10 @@
 #define LASER_DATA              (MOTHERSHIP_MAP_TILEMAP_DATA + MOTHERSHIP_MAP_TILEMAP_SIZE) // Address for laser sprite data
 #define LASER_DATA_SIZE         0x1000U // Size of laser sprite data (2 parts * 32x32 * 2 bytes = 8KB)
 
-#define SPRITE_DATA_END         (LASER_DATA + LASER_DATA_SIZE) // End address for sprite data
+#define ASTEROID_DATA           (LASER_DATA + LASER_DATA_SIZE) // Address for asteroid sprite data
+#define ASTEROID_DATA_SIZE      0x0200U // Size of asteroid sprite data (2 parts * 8x8 * 2 bytes = 512 bytes)
+
+#define SPRITE_DATA_END         (ASTEROID_DATA + ASTEROID_DATA_SIZE) // End address for sprite data
 
 // Main Map configuration
 #define MAIN_MAP_WIDTH_TILES 40
