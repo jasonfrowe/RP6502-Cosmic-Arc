@@ -5,7 +5,10 @@
 #include "mothership.h"
 #include "starfield.h"
 
+#define LASER_SPRITE_LOG_SIZE 5
+
 unsigned COSMICARC_CONFIG;
+unsigned LASER_CONFIG;
 unsigned STAR_MAP_CONFIG;
 
 static void init_graphics(void)
@@ -48,13 +51,21 @@ static void init_graphics(void)
     COSMICARC_CONFIG = SPRITE_DATA_END;
     init_mothership(COSMICARC_CONFIG);
 
+    LASER_CONFIG = COSMICARC_CONFIG + (MOTHERSHIP_PART_COUNT * sizeof(vga_mode4_sprite_t));
+
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, x_pos_px, 0);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, y_pos_px, 0);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LASER_DATA);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, log_size, LASER_SPRITE_LOG_SIZE);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
+
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(4, 0, COSMICARC_CONFIG, MOTHERSHIP_PART_COUNT, 1, 0, 0) < 0) {
+    if (xreg_vga_mode(4, 0, COSMICARC_CONFIG, MOTHERSHIP_PART_COUNT + 1, 1, 0, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
 
-    STAR_MAP_CONFIG = COSMICARC_CONFIG + (MOTHERSHIP_PART_COUNT * sizeof(vga_mode4_sprite_t));
+    STAR_MAP_CONFIG = COSMICARC_CONFIG + ((MOTHERSHIP_PART_COUNT + 1) * sizeof(vga_mode4_sprite_t));
 
     xram0_struct_set(STAR_MAP_CONFIG, vga_mode2_config_t, x_wrap, false);
     xram0_struct_set(STAR_MAP_CONFIG, vga_mode2_config_t, y_wrap, false);
@@ -78,6 +89,7 @@ static void init_graphics(void)
     printf("STAR_MAP DATA: 0x%04X - 0x%04X\n", STAR_MAP_DATA, STAR_MAP_DATA + STAR_MAP_DATA_SIZE);
     printf("STAR_MAP TILEMAP: 0x%04X - 0x%04X\n", STAR_MAP_TILEMAP_DATA, STAR_MAP_TILEMAP_DATA + STAR_MAP_TILEMAP_SIZE);
     printf("COSMICARC_CONFIG: 0x%04X\n", COSMICARC_CONFIG);
+    printf("LASER_CONFIG: 0x%04X\n", LASER_CONFIG);
     printf("STAR_MAP_CONFIG: 0x%04X\n", STAR_MAP_CONFIG);
 
 }

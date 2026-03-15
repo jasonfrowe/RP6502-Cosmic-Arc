@@ -12,6 +12,7 @@ add_executable(CosmicArc)
 rp6502_asset(CosmicArc 0x10000 images/CosmicArc.bin)
 rp6502_asset(CosmicArc 0x12000 images/StarMap.bin)
 rp6502_asset(CosmicArc 0x12120 images/StarMap_TileMap.bin)
+rp6502_asset(CosmicArc 0x125D0 images/laser.bin)
 rp6502_asset(CosmicArc help src/help.txt)
 
 rp6502_executable(CosmicArc
