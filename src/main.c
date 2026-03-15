@@ -4,10 +4,13 @@
 #include "constants.h"
 #include "starfield.h"
 #include "mothership.h"
+#include "laser.h"
 #include "palette.h"
+#include "input.h"
 
 unsigned MAIN_MAP_CONFIG;
 unsigned MOTHERSHIP_CONFIG;
+unsigned LASER_CONFIG;
 
 static void init_graphics(void)
 {
@@ -28,7 +31,6 @@ static void init_graphics(void)
     // Start with one lit star color and rotate it over time.
     starfield_init();
     mothership_init();
-
     MAIN_MAP_CONFIG = SPRITE_DATA_END;
 
     xram0_struct_set(MAIN_MAP_CONFIG, vga_mode2_config_t, x_wrap, false);
@@ -66,11 +68,26 @@ static void init_graphics(void)
         return;
     }
 
+    LASER_CONFIG = MOTHERSHIP_CONFIG + sizeof(vga_mode2_config_t);
+
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, x_pos_px, 0);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, y_pos_px, 0);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LASER_DATA);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, log_size, LASER_SPRITE_LOG_SIZE);
+    xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
+
+    // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
+    if (xreg_vga_mode(4, 0, LASER_CONFIG, 1, 1, 0, 0) < 0) {
+        puts("xreg_vga_mode failed");
+        return;
+    }
+
 
     printf("MAIN_MAP DATA: 0x%04X - 0x%04X\n", MAIN_MAP_DATA, MAIN_MAP_DATA + MAIN_MAP_DATA_SIZE);
     printf("MAIN_MAP TILEMAP: 0x%04X - 0x%04X\n", MAIN_MAP_TILEMAP_DATA, MAIN_MAP_TILEMAP_DATA + MAIN_MAP_TILEMAP_SIZE);
     printf("MAIN_MAP_CONFIG: 0x%04X\n", MAIN_MAP_CONFIG);
     printf("MOTHERSHIP_CONFIG: 0x%04X\n", MOTHERSHIP_CONFIG);
+    laser_init();
 
 }
 
@@ -80,7 +97,12 @@ int main(void)
 {
     puts("Hello from Cosmic Arc!");
 
+    // Match RPMegaRacer input setup: map RIA keyboard/gamepad streams to XRAM buffers.
+    xregn(0, 0, 0, 1, KEYBOARD_INPUT);
+    xregn(0, 0, 2, 1, GAMEPAD_INPUT);
+
     init_graphics();
+    init_input_system();
 
     while (true) {
         // Main game loop
@@ -88,8 +110,18 @@ int main(void)
         if (RIA.vsync == vsync_last) continue;
         vsync_last = RIA.vsync;
 
+        // Get Input from Keyboard/Gamepad
+        handle_input();
+
+        // Fire laser in the pressed direction (one at a time)
+        if      (is_action_pressed(0, ACTION_THRUST)) laser_fire(LASER_UP);
+        else if (is_action_pressed(0, ACTION_REVERSE_THRUST))  laser_fire(LASER_DOWN);
+        else if (is_action_pressed(0, ACTION_ROTATE_LEFT))  laser_fire(LASER_LEFT);
+        else if (is_action_pressed(0, ACTION_ROTATE_RIGHT)) laser_fire(LASER_RIGHT);
+
         starfield_update();
         mothership_update();
+        laser_update();
 
         }
     return 0;

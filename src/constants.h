@@ -17,7 +17,10 @@
 #define MOTHERSHIP_MAP_TILEMAP_DATA   (MAIN_MAP_TILEMAP_DATA + MAIN_MAP_TILEMAP_SIZE) // Address for Main Map tilemap data
 #define MOTHERSHIP_MAP_TILEMAP_SIZE   0x04B0U // 1200 bytes (40 * 30 tile IDs)
 
-#define SPRITE_DATA_END         (MOTHERSHIP_MAP_TILEMAP_DATA + MOTHERSHIP_MAP_TILEMAP_SIZE) // End address for sprite data
+#define LASER_DATA              (MOTHERSHIP_MAP_TILEMAP_DATA + MOTHERSHIP_MAP_TILEMAP_SIZE) // Address for laser sprite data
+#define LASER_DATA_SIZE         0x1000U // Size of laser sprite data (2 parts * 32x32 * 2 bytes = 8KB)
+
+#define SPRITE_DATA_END         (LASER_DATA + LASER_DATA_SIZE) // End address for sprite data
 
 // Main Map configuration
 #define MAIN_MAP_WIDTH_TILES 40
@@ -32,10 +35,13 @@
 #define OPL_ADDR        0xFE00  // OPL2 register page (256 bytes, must be page-aligned)
 #define OPL_SIZE        0x0100
 
-// Input buffers can live anywhere in XRAM; keep them away from palette/OPL regions.
-#define GAMEPAD_INPUT   0xFA00  // 40 bytes for 4 gamepads
-#define KEYBOARD_INPUT  0xFA40  // 32 bytes keyboard bitfield
+// RIA input buffers are provided at fixed XRAM addresses.
+#define GAMEPAD_INPUT   0xFF78  // 40 bytes for 4 gamepads
+#define KEYBOARD_INPUT  0xFFA0  // 32 bytes keyboard bitfield
 
 extern unsigned MAIN_MAP_CONFIG;  // Configuration byte for Main Map tile asset
+extern unsigned LASER_CONFIG;     // Configuration struct address for laser sprite
+
+#define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
 
 #endif // CONSTANTS_H

@@ -12,6 +12,7 @@ add_executable(CosmicArc)
 rp6502_asset(CosmicArc 0x10000 images/MainScreen_tiles.bin)
 rp6502_asset(CosmicArc 0x119C0 images/MainScreen_map.bin)
 rp6502_asset(CosmicArc 0x11E70 images/Mothership_map.bin)
+rp6502_asset(CosmicArc 0x12320 images/laser.bin)
 rp6502_asset(CosmicArc help src/help.txt)
 
 rp6502_executable(CosmicArc
@@ -23,4 +24,17 @@ target_sources(CosmicArc PRIVATE
     src/main.c
     src/starfield.c
     src/mothership.c
+    src/laser.c
+    src/input.c
+)
+
+add_executable(GamepadMapper)
+rp6502_executable(GamepadMapper
+    DATA file
+    RESET file
+)
+
+target_sources(GamepadMapper PRIVATE
+    src/gamepad_mapper.c
+    src/input.c
 )
