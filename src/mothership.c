@@ -86,7 +86,11 @@ static void restore_destruction_palette(void)
 static void apply_destruction_palette(void)
 {
     uint16_t shuffled[8];
+    uint8_t transparent_threshold;
     uint8_t i;
+
+    transparent_threshold = (uint8_t)((mothership_destroy_timer * 255u) /
+                                      (MOTHERSHIP_DESTRUCTION_FRAMES - 1u));
 
     for (i = 0; i < 8; ++i) {
         shuffled[i] = tile_palette[mothership_destruction_indices[i]];
@@ -103,7 +107,7 @@ static void apply_destruction_palette(void)
     for (i = 0; i < 8; ++i) {
         uint8_t idx = mothership_destruction_indices[i];
         uint16_t color;
-        if (next_rand() & 1u) {
+        if ((next_rand() & 0xFFu) <= transparent_threshold) {
             color = 0x0000;
         } else {
             color = shuffled[i];
@@ -142,19 +146,15 @@ static void restore_mothership_tiles(void)
     }
 }
 
-static void apply_destruction_tiles(void)
+static void apply_destruction_transparent_tiles(void)
 {
-    uint8_t x;
-    uint8_t y;
+    RIA.addr0 = mothership_tilemap_addr(12u, 10u);
+    RIA.step0 = 1;
+    RIA.rw0 = 0;
 
-    for (y = 0; y < MOTHERSHIP_TILE_H; ++y) {
-        RIA.addr0 = mothership_tilemap_addr((uint8_t)(MOTHERSHIP_TILE_X0), (uint8_t)(MOTHERSHIP_TILE_Y0 + y));
-        RIA.step0 = 1;
-        for (x = 0; x < MOTHERSHIP_TILE_W; ++x) {
-            uint8_t tile = (uint8_t)(103 + (next_rand() & 0x07u));
-            RIA.rw0 = tile;
-        }
-    }
+    RIA.addr0 = mothership_tilemap_addr(27u, 10u);
+    RIA.step0 = 1;
+    RIA.rw0 = 0;
 }
 
 void mothership_init(void)
@@ -189,7 +189,7 @@ void mothership_start_destruction(void)
     mothership_state = MOTHERSHIP_DESTROYING;
     mothership_destroy_tick = 0;
     mothership_destroy_timer = 0;
-    apply_destruction_tiles();
+    apply_destruction_transparent_tiles();
     apply_destruction_palette();
 }
 
@@ -203,7 +203,6 @@ void mothership_update(void)
     if (mothership_state == MOTHERSHIP_DESTROYING) {
         if (++mothership_destroy_tick >= MOTHERSHIP_DESTRUCTION_TICKS) {
             mothership_destroy_tick = 0;
-            apply_destruction_tiles();
             apply_destruction_palette();
         }
 
