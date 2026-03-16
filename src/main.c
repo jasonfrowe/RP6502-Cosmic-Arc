@@ -15,6 +15,51 @@ unsigned MOTHERSHIP_CONFIG;
 unsigned LASER_CONFIG;
 unsigned ASTEROID_CONFIG;
 
+static unsigned tilemap_addr(unsigned tilemap_base, uint8_t x, uint8_t y)
+{
+    return (unsigned)(tilemap_base + ((unsigned)y * MAIN_MAP_WIDTH_TILES) + x);
+}
+
+static void tilemap_write(unsigned tilemap_base, uint8_t x, uint8_t y, uint8_t tile)
+{
+    RIA.addr0 = tilemap_addr(tilemap_base, x, y);
+    RIA.step0 = 1;
+    RIA.rw0 = tile;
+}
+
+static void tilemap_fill_row(unsigned tilemap_base, uint8_t y, uint8_t tile)
+{
+    RIA.addr0 = tilemap_addr(tilemap_base, 0, y);
+    RIA.step0 = 1;
+    for (uint8_t x = 0; x < MAIN_MAP_WIDTH_TILES; ++x)
+        RIA.rw0 = tile;
+}
+
+static void apply_starting_tilemap_layout(void)
+{
+    uint8_t y;
+
+    // MOTHERSHIP_MAP_TILEMAP_DATA: make (19,12) and (20,12) transparent.
+    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 19, 12, 0);
+    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 20, 12, 0);
+
+    // MAIN_MAP_TILEMAP_DATA: make (1,18) and (38,18) background.
+    tilemap_write(MAIN_MAP_TILEMAP_DATA, 1, 18, 87);
+    tilemap_write(MAIN_MAP_TILEMAP_DATA, 38, 18, 87);
+
+    // MAIN_MAP_TILEMAP_DATA: make edge columns background for rows 18-22.
+    for (y = 18; y <= 22; ++y) {
+        tilemap_write(MAIN_MAP_TILEMAP_DATA, 0, y, 87);
+        tilemap_write(MAIN_MAP_TILEMAP_DATA, 39, y, 87);
+    }
+
+
+
+    // MAIN_MAP_TILEMAP_DATA: row 23 to index 87, row 24 to tile 1.
+    tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 23, 87);
+    tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 24, 1);
+}
+
 static void init_graphics(void)
 {
     // Select a 320x240 canvas
@@ -92,6 +137,8 @@ static void init_graphics(void)
         puts("xreg_vga_mode failed");
         return;
     }
+
+    apply_starting_tilemap_layout();
 
 
     printf("MAIN_MAP DATA: 0x%04X - 0x%04X\n", MAIN_MAP_DATA, MAIN_MAP_DATA + MAIN_MAP_DATA_SIZE);
