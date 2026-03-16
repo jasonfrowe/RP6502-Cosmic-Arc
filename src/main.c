@@ -143,8 +143,9 @@ int main(void)
             if (result == ASTEROID_LASER_HIT)
                 score_add(10);
             else if (result == ASTEROID_MOTHERSHIP_HIT) {
-                mothership_reset();
+                mothership_start_destruction();
                 asteroid_reset();
+                laser_init();
             }
         }
 

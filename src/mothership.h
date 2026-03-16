@@ -5,6 +5,7 @@
 
 void mothership_init(void);
 void mothership_reset(void);
+void mothership_start_destruction(void);
 bool mothership_is_landed(void);
 void mothership_update(void);
 
