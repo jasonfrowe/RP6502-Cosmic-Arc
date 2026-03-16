@@ -27,7 +27,9 @@ static uint16_t asteroid_rng;
 
 static uint16_t next_rand(void)
 {
-    asteroid_rng = (uint16_t)(asteroid_rng * 109u + 89u);
+    asteroid_rng ^= (uint16_t)(asteroid_rng << 7);
+    asteroid_rng ^= (uint16_t)(asteroid_rng >> 9);
+    asteroid_rng ^= (uint16_t)(asteroid_rng << 8);
     return asteroid_rng;
 }
 
