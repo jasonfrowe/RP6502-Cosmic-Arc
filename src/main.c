@@ -333,7 +333,7 @@ static void init_graphics(void)
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, xram_palette_ptr, PALETTE_ADDR);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, xram_tile_ptr,    MAIN_MAP_DATA);
 
-    if (xreg_vga_mode(2, 0x03, MOTHERSHIP_CONFIG, 1, 0, 0) < 0) {
+    if (xreg_vga_mode(2, 0x03, MOTHERSHIP_CONFIG, 2, 0, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -371,7 +371,7 @@ static void init_graphics(void)
     xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(4, 0, LASER_CONFIG, 4, 2, 0, SPACE_HEIGHT) < 0) {
+    if (xreg_vga_mode(4, 0, LASER_CONFIG, 4, 1, 0, SPACE_HEIGHT) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -470,6 +470,8 @@ int main(void)
 
         starfield_update();
         mothership_update();
+        if (mothership_consume_respawned_after_destruction())
+            toggle_surface_phase();
         laser_update();
         beasties_update(planet_surface_phase);
 
@@ -491,7 +493,6 @@ int main(void)
                     sound_play_destruction();
                 }
 
-                toggle_surface_phase();
                 mothership_start_destruction();
                 asteroid_reset();
                 laser_init();

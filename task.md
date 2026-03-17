@@ -10,20 +10,20 @@
 - [x] Score display and scoring for asteroid hits
 - [x] Game-start mothership fly-in
 - [x] Mothership destruction sequence and respawn loop
-- [ ] Planet-surface transition
+- [x] Planet-surface transition (timed on mothership respawn)
+- [x] Demo mode loop (music on, no player fire, title hide on start)
+- [x] Shield/energy bar and shield drain/recovery rules
+- [x] Beasties sprites on surface phase (2 active)
 - [ ] Creature capture gameplay
-- [ ] Full audio pass
+- [ ] Full audio pass (mix/tuning)
 - [ ] End-to-end gameplay polish and balancing
 
 ## Next Tasks
 
-- [ ] Create OPL2 music
-- [ ] Add OPL2 sound effects
-  - [ ] Laser
-  - [ ] Destruction
-  - [ ] Asteroid
-  - [ ] Mothership flying
-- [ ] Add transition to planet surface
+- [ ] Creature capture rules and scoring integration
+- [ ] Surface-phase enemy/interaction behavior polish
+- [ ] Audio mix pass (music + SFX balance, loop smoothness)
+- [ ] Atmosphere glow palette tweak (deferred pending design)
 
 ## Progress vs Final Goal
 
@@ -38,15 +38,15 @@ The biggest missing pieces between the current build and a recognizably complete
 
 ## Suggested Order
 
-1. Finish OPL2 sound effects first so moment-to-moment gameplay gets feedback.
-2. Add OPL2 music once timing and sound channels are understood.
-3. Build the transition to planet surface.
-4. Implement creature capture and the second gameplay phase.
-5. Do balancing and visual/audio polish last.
+1. Implement creature capture gameplay and scoring outcomes.
+2. Tune surface-phase behavior (beastie motion and interaction readability).
+3. Do audio mix/loop polish across demo and gameplay tracks.
+4. Revisit atmosphere glow palette treatment.
+5. Finish balancing and overall polish.
 
 ## Scoring Notes
 1. 10 points for each asteroid hit
 2. 1000 points for capturing both creatures on the planet surface
 3. 10 points for only capturing one creature on the planet surface
-4. start with 40 energy.  lose 1 point for each laser shot, and 10 points for each asteroid hit.  Game over when energy reaches 0.
-5. get 1 energy back for each asteroid.  full energy for capturing both creatures on the planet surface.
+4. start with 48 shield. lose 1 point for each laser shot, and 12 points for each asteroid hit. Game over when shield reaches 0.
+5. get 1 shield back for each asteroid. full shield for capturing both creatures on the planet surface.

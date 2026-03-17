@@ -44,6 +44,8 @@ static uint8_t  mothership_destroy_tick = 0;
 static uint16_t mothership_destroy_timer = 0;
 static uint16_t mothership_rng = 0x6C8Du;
 static uint8_t mothership_saved_tiles[MOTHERSHIP_TILE_COUNT];
+static bool mothership_respawned_after_destruction = false;
+static bool mothership_waiting_for_respawn = false;
 
 static uint16_t next_rand(void)
 {
@@ -164,6 +166,8 @@ void mothership_init(void)
     mothership_state = MOTHERSHIP_DESCENDING;
     mothership_destroy_tick = 0;
     mothership_destroy_timer = 0;
+    mothership_respawned_after_destruction = false;
+    mothership_waiting_for_respawn = false;
     backup_mothership_tiles();
     restore_mothership_tiles();
     restore_destruction_palette();
@@ -178,6 +182,8 @@ void mothership_reset(void)
     mothership_state = MOTHERSHIP_DESCENDING;
     mothership_destroy_tick = 0;
     mothership_destroy_timer = 0;
+    mothership_respawned_after_destruction = mothership_waiting_for_respawn;
+    mothership_waiting_for_respawn = false;
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, mothership_y);
 }
 
@@ -189,6 +195,7 @@ void mothership_start_destruction(void)
     mothership_state = MOTHERSHIP_DESTROYING;
     mothership_destroy_tick = 0;
     mothership_destroy_timer = 0;
+    mothership_waiting_for_respawn = true;
     apply_destruction_transparent_tiles();
     apply_destruction_palette();
 }
@@ -201,6 +208,13 @@ bool mothership_is_descending(void)
 bool mothership_is_landed(void)
 {
     return mothership_state == MOTHERSHIP_LANDED;
+}
+
+bool mothership_consume_respawned_after_destruction(void)
+{
+    bool respawned = mothership_respawned_after_destruction;
+    mothership_respawned_after_destruction = false;
+    return respawned;
 }
 
 void mothership_update(void)

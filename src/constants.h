@@ -4,7 +4,7 @@
 // Screen dimensions
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
-#define SPACE_HEIGHT 192
+#define SPACE_HEIGHT 200
 
 // Sprite data configuration
 #define SPRITE_DATA_START       0x0000U // Starting address in XRAM for sprite data
