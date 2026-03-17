@@ -24,7 +24,10 @@
 #define ASTEROID_DATA           (LASER_DATA + LASER_DATA_SIZE) // Address for asteroid sprite data
 #define ASTEROID_DATA_SIZE      0x0200U // Size of asteroid sprite data (2 parts * 8x8 * 2 bytes = 512 bytes)
 
-#define SPRITE_DATA_END         (ASTEROID_DATA + ASTEROID_DATA_SIZE) // End address for sprite data
+#define BEASTIES_DATA           (ASTEROID_DATA + ASTEROID_DATA_SIZE) // Address for beasties sprite data
+#define BEASTIES_DATA_SIZE      0x0A00U // Size of beasties sprite (20 parts * 8x8 * 2 bytes = 2560 bytes)
+
+#define SPRITE_DATA_END         (BEASTIES_DATA + BEASTIES_DATA_SIZE) // End address for sprite data
 
 // Main Map configuration
 #define MAIN_MAP_WIDTH_TILES 40
@@ -47,6 +50,8 @@ extern unsigned MAIN_MAP_CONFIG;     // Configuration struct address for Main Ma
 extern unsigned MOTHERSHIP_CONFIG;   // Configuration struct address for Mothership
 extern unsigned LASER_CONFIG;        // Configuration struct address for laser sprite
 extern unsigned ASTEROID_CONFIG;     // Configuration struct address for asteroid sprite
+extern unsigned BEASTIE1_CONFIG;     // Configuration struct address for beastie sprite 1
+extern unsigned BEASTIE2_CONFIG;     // Configuration struct address for beastie sprite 2
 
 #define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
 

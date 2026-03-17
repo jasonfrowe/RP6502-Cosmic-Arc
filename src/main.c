@@ -6,6 +6,7 @@
 #include "mothership.h"
 #include "laser.h"
 #include "asteroid.h"
+#include "beasties.h"
 #include "palette.h"
 #include "input.h"
 #include "score.h"
@@ -16,6 +17,8 @@ unsigned MAIN_MAP_CONFIG;
 unsigned MOTHERSHIP_CONFIG;
 unsigned LASER_CONFIG;
 unsigned ASTEROID_CONFIG;
+unsigned BEASTIE1_CONFIG;
+unsigned BEASTIE2_CONFIG;
 
 #define TITLE_X0 8
 #define TITLE_X1 32
@@ -36,6 +39,13 @@ unsigned ASTEROID_CONFIG;
 #define SHIELD_TILE_FULL 18
 #define SHIELD_TILE_EMPTY 26
 
+#define TERRAIN_Y0 18
+#define TERRAIN_Y1 24
+#define TERRAIN_ROW_COUNT (TERRAIN_Y1 - TERRAIN_Y0 + 1)
+#define TERRAIN_TILE_COUNT (MAIN_MAP_WIDTH_TILES * TERRAIN_ROW_COUNT)
+#define DEEP_SPACE_TILE 87
+#define DEEP_SPACE_ROW24_TILE 1
+
 typedef enum {
     GAME_MODE_DEMO = 0,
     GAME_MODE_PLAYING,
@@ -45,6 +55,8 @@ static GameMode game_mode = GAME_MODE_DEMO;
 static int16_t shield_points = SHIELD_START;
 static bool fire_start_armed = false;
 static uint8_t title_tiles_backup[TITLE_TILE_COUNT];
+static uint8_t terrain_rows_backup[TERRAIN_TILE_COUNT];
+static bool planet_surface_phase = false;
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -89,6 +101,60 @@ static void backup_title_tiles(void)
             title_tiles_backup[i++] = tilemap_read(MOTHERSHIP_MAP_TILEMAP_DATA, x, y);
         }
     }
+}
+
+static void backup_terrain_rows(void)
+{
+    uint8_t y;
+    uint8_t x;
+    uint16_t i = 0;
+
+    for (y = TERRAIN_Y0; y <= TERRAIN_Y1; ++y) {
+        for (x = 0; x < MAIN_MAP_WIDTH_TILES; ++x) {
+            terrain_rows_backup[i++] = tilemap_read(MAIN_MAP_TILEMAP_DATA, x, y);
+        }
+    }
+}
+
+static void set_terrain_rows_tile(uint8_t tile)
+{
+    uint8_t y;
+    uint8_t x;
+
+    for (y = TERRAIN_Y0; y <= TERRAIN_Y1; ++y) {
+        for (x = 0; x < MAIN_MAP_WIDTH_TILES; ++x) {
+            tilemap_write(MAIN_MAP_TILEMAP_DATA, x, y, tile);
+        }
+    }
+}
+
+static void set_deep_space_terrain(void)
+{
+    // Keep rows 18-22 as authored terrain; deep-space styling uses rows 23-24.
+    tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 23, DEEP_SPACE_TILE);
+    tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 24, DEEP_SPACE_ROW24_TILE);
+}
+
+static void restore_terrain_rows(void)
+{
+    uint8_t y;
+    uint8_t x;
+    uint16_t i = 0;
+
+    for (y = TERRAIN_Y0; y <= TERRAIN_Y1; ++y) {
+        for (x = 0; x < MAIN_MAP_WIDTH_TILES; ++x) {
+            tilemap_write(MAIN_MAP_TILEMAP_DATA, x, y, terrain_rows_backup[i++]);
+        }
+    }
+}
+
+static void toggle_surface_phase(void)
+{
+    planet_surface_phase = !planet_surface_phase;
+    if (planet_surface_phase)
+        restore_terrain_rows();
+    else
+        set_deep_space_terrain();
 }
 
 static void hide_title_tiles(void)
@@ -148,35 +214,42 @@ static void start_demo_mode(void)
     game_mode = GAME_MODE_DEMO;
     fire_start_armed = false;
     shield_points = SHIELD_START;
+    planet_surface_phase = false;
     draw_shield_bar();
 
     restore_title_tiles();
     asteroid_reset();
     laser_init();
+    beasties_reset();
     mothership_reset();
+    set_deep_space_terrain();
 
     opl_silence_all();
     sound_init();
     music_enabled = true;
-    music_init(MUSIC_FILENAME);
+    music_init(DEMO_MUSIC_FILENAME);
 }
 
 static void start_gameplay_mode(void)
 {
     game_mode = GAME_MODE_PLAYING;
     shield_points = SHIELD_START;
+    planet_surface_phase = false;
     draw_shield_bar();
     fire_start_armed = false;
 
     hide_title_tiles();
 
-    music_enabled = false;
     opl_silence_all();
     sound_init();
+    music_enabled = true;
+    music_init(GAME_MUSIC_FILENAME);
 
     asteroid_reset();
     laser_init();
+    beasties_reset();
     mothership_reset();
+    set_deep_space_terrain();
 }
 
 static void apply_starting_tilemap_layout(void)
@@ -191,21 +264,22 @@ static void apply_starting_tilemap_layout(void)
     tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 0 , 0 , 0);
     tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 39, 29, 0);
 
-    // MAIN_MAP_TILEMAP_DATA: make (1,18) and (38,18) background.
-    tilemap_write(MAIN_MAP_TILEMAP_DATA, 1, 18, 87);
-    tilemap_write(MAIN_MAP_TILEMAP_DATA, 38, 18, 87);
+    // // MAIN_MAP_TILEMAP_DATA: make (1,18) and (38,18) background.
+    // tilemap_write(MAIN_MAP_TILEMAP_DATA, 1, 18, 87);
+    // tilemap_write(MAIN_MAP_TILEMAP_DATA, 38, 18, 87);
 
-    // MAIN_MAP_TILEMAP_DATA: make edge columns background for rows 18-22.
-    for (y = 18; y <= 22; ++y) {
-        tilemap_write(MAIN_MAP_TILEMAP_DATA, 0, y, 87);
-        tilemap_write(MAIN_MAP_TILEMAP_DATA, 39, y, 87);
-    }
-
-
+    // // MAIN_MAP_TILEMAP_DATA: make edge columns background for rows 18-22.
+    // for (y = 18; y <= 22; ++y) {
+    //     tilemap_write(MAIN_MAP_TILEMAP_DATA, 0, y, 87);
+    //     tilemap_write(MAIN_MAP_TILEMAP_DATA, 39, y, 87);
+    // }
 
     // MAIN_MAP_TILEMAP_DATA: row 23 to index 87, row 24 to tile 1.
     tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 23, 87);
     tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 24, 1);
+
+    // MAIN_MAP_TILEMAP_DATA: deep-space phase styles rows 23-24 only.
+    set_deep_space_terrain();
 }
 
 static void init_graphics(void)
@@ -259,7 +333,7 @@ static void init_graphics(void)
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, xram_palette_ptr, PALETTE_ADDR);
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, xram_tile_ptr,    MAIN_MAP_DATA);
 
-    if (xreg_vga_mode(2, 0x03, MOTHERSHIP_CONFIG, 2, 0, 0) < 0) {
+    if (xreg_vga_mode(2, 0x03, MOTHERSHIP_CONFIG, 1, 0, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -280,12 +354,29 @@ static void init_graphics(void)
     xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, log_size, 3); // 8x8 sprites  
     xram0_struct_set(ASTEROID_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
+    BEASTIE1_CONFIG = ASTEROID_CONFIG + sizeof(vga_mode4_sprite_t);
+
+    xram0_struct_set(BEASTIE1_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
+    xram0_struct_set(BEASTIE1_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
+    xram0_struct_set(BEASTIE1_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, BEASTIES_DATA);
+    xram0_struct_set(BEASTIE1_CONFIG, vga_mode4_sprite_t, log_size, 3); // 8x8 sprites
+    xram0_struct_set(BEASTIE1_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
+
+    BEASTIE2_CONFIG = BEASTIE1_CONFIG + sizeof(vga_mode4_sprite_t);
+
+    xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
+    xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
+    xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, BEASTIES_DATA);
+    xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, log_size, 3); // 8x8 sprites
+    xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
+
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(4, 0, LASER_CONFIG, 2, 1, 0, SPACE_HEIGHT) < 0) {
+    if (xreg_vga_mode(4, 0, LASER_CONFIG, 4, 2, 0, SPACE_HEIGHT) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
 
+    backup_terrain_rows();
     apply_starting_tilemap_layout();
 
 
@@ -327,6 +418,7 @@ int main(void)
     mothership_reset();
     laser_init();
     asteroid_init();
+    beasties_init();
     score_init();
     init_input_system();
 
@@ -379,6 +471,7 @@ int main(void)
         starfield_update();
         mothership_update();
         laser_update();
+        beasties_update(planet_surface_phase);
 
         if (mothership_is_landed()) {
             AsteroidResult result = asteroid_update();
@@ -398,6 +491,7 @@ int main(void)
                     sound_play_destruction();
                 }
 
+                toggle_surface_phase();
                 mothership_start_destruction();
                 asteroid_reset();
                 laser_init();
