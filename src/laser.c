@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "constants.h"
 #include "laser.h"
+#include "sound.h"
 
 #define LASER_SPEED      6
 #define LASER_HALF_SIZE  16   // 32x32 sprite half-width
@@ -43,10 +44,10 @@ void laser_init(void)
     write_laser_pos(-64, -64);
 }
 
-void laser_fire(LaserDirection dir)
+bool laser_fire(LaserDirection dir)
 {
     if (laser_active || laser_cooldown > 0 || dir == LASER_NONE)
-        return;
+        return false;
 
     laser_active = true;
     laser_x = MOTHERSHIP_X - LASER_HALF_SIZE;
@@ -73,10 +74,12 @@ void laser_fire(LaserDirection dir)
             break;
         default:
             laser_active = false;
-            return;
+            return false;
     }
 
+    sound_play_laser();
     write_laser_pos(laser_x, laser_y);
+    return true;
 }
 
 void laser_update(void)

@@ -9,6 +9,7 @@ typedef enum {
 
 void asteroid_init(void);
 void asteroid_reset(void);
+bool asteroid_is_active(void);
 AsteroidResult asteroid_update(void);
 
 #endif // ASTEROID_H

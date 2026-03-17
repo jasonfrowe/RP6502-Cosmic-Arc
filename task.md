@@ -43,3 +43,10 @@ The biggest missing pieces between the current build and a recognizably complete
 3. Build the transition to planet surface.
 4. Implement creature capture and the second gameplay phase.
 5. Do balancing and visual/audio polish last.
+
+## Scoring Notes
+1. 10 points for each asteroid hit
+2. 1000 points for capturing both creatures on the planet surface
+3. 10 points for only capturing one creature on the planet surface
+4. start with 40 energy.  lose 1 point for each laser shot, and 10 points for each asteroid hit.  Game over when energy reaches 0.
+5. get 1 energy back for each asteroid.  full energy for capturing both creatures on the planet surface.

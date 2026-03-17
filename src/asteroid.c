@@ -163,3 +163,8 @@ void asteroid_reset(void)
     deactivate_asteroid();
     asteroid_spawn_tick = 0;
 }
+
+bool asteroid_is_active(void)
+{
+    return asteroid_active;
+}

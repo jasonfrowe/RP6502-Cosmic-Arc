@@ -10,10 +10,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(CosmicArc)
 rp6502_asset(CosmicArc 0x10000 images/MainScreen_tiles.bin)
-rp6502_asset(CosmicArc 0x11BC0 images/MainScreen_map.bin)
-rp6502_asset(CosmicArc 0x12070 images/Mothership_map.bin)
-rp6502_asset(CosmicArc 0x12520 images/laser.bin)
-rp6502_asset(CosmicArc 0x13520 images/Asteroid.bin)
+rp6502_asset(CosmicArc 0x12FC0 images/MainScreen_map.bin)
+rp6502_asset(CosmicArc 0x13470 images/Mothership_map.bin)
+rp6502_asset(CosmicArc 0x13920 images/laser.bin)
+rp6502_asset(CosmicArc 0x14920 images/Asteroid.bin)
 rp6502_asset(CosmicArc help src/help.txt)
 
 rp6502_executable(CosmicArc
@@ -29,7 +29,12 @@ target_sources(CosmicArc PRIVATE
     src/asteroid.c
     src/score.c
     src/input.c
+    src/opl.c
+    src/sound.c
+    src/instruments.c
 )
+
+target_compile_definitions(CosmicArc PRIVATE USE_NATIVE_OPL2)
 
 add_executable(GamepadMapper)
 rp6502_executable(GamepadMapper

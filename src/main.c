@@ -9,11 +9,47 @@
 #include "palette.h"
 #include "input.h"
 #include "score.h"
+#include "opl.h"
+#include "sound.h"
 
 unsigned MAIN_MAP_CONFIG;
 unsigned MOTHERSHIP_CONFIG;
 unsigned LASER_CONFIG;
 unsigned ASTEROID_CONFIG;
+
+#define TITLE_X0 8
+#define TITLE_X1 32
+#define TITLE_Y0 4
+#define TITLE_Y1 7
+#define TITLE_W  (TITLE_X1 - TITLE_X0 + 1)
+#define TITLE_H  (TITLE_Y1 - TITLE_Y0 + 1)
+#define TITLE_TILE_COUNT (TITLE_W * TITLE_H)
+
+#define SHIELD_START 48
+#define SHIELD_HIT_LOSS 12
+#define SHIELD_FIRE_LOSS 1
+#define SHIELD_ASTEROID_REWARD 1
+#define SHIELD_SEGMENTS 6
+#define SHIELD_POINTS_PER_SEGMENT 8
+#define SHIELD_BAR_X0 17
+#define SHIELD_BAR_Y 27
+#define SHIELD_TILE_FULL 18
+#define SHIELD_TILE_EMPTY 26
+
+typedef enum {
+    GAME_MODE_DEMO = 0,
+    GAME_MODE_PLAYING,
+} GameMode;
+
+static GameMode game_mode = GAME_MODE_DEMO;
+static int16_t shield_points = SHIELD_START;
+static bool fire_start_armed = false;
+static uint8_t title_tiles_backup[TITLE_TILE_COUNT];
+
+#define SONG_HZ 60
+uint8_t vsync_last = 0;
+uint16_t timer_accumulator = 0;
+bool music_enabled = true;
 
 static unsigned tilemap_addr(unsigned tilemap_base, uint8_t x, uint8_t y)
 {
@@ -27,12 +63,120 @@ static void tilemap_write(unsigned tilemap_base, uint8_t x, uint8_t y, uint8_t t
     RIA.rw0 = tile;
 }
 
+static uint8_t tilemap_read(unsigned tilemap_base, uint8_t x, uint8_t y)
+{
+    RIA.addr0 = tilemap_addr(tilemap_base, x, y);
+    RIA.step0 = 1;
+    return RIA.rw0;
+}
+
 static void tilemap_fill_row(unsigned tilemap_base, uint8_t y, uint8_t tile)
 {
     RIA.addr0 = tilemap_addr(tilemap_base, 0, y);
     RIA.step0 = 1;
     for (uint8_t x = 0; x < MAIN_MAP_WIDTH_TILES; ++x)
         RIA.rw0 = tile;
+}
+
+static void backup_title_tiles(void)
+{
+    uint8_t x;
+    uint8_t y;
+    uint8_t i = 0;
+
+    for (y = TITLE_Y0; y <= TITLE_Y1; ++y) {
+        for (x = TITLE_X0; x <= TITLE_X1; ++x) {
+            title_tiles_backup[i++] = tilemap_read(MOTHERSHIP_MAP_TILEMAP_DATA, x, y);
+        }
+    }
+}
+
+static void hide_title_tiles(void)
+{
+    uint8_t x;
+    uint8_t y;
+
+    for (y = TITLE_Y0; y <= TITLE_Y1; ++y) {
+        for (x = TITLE_X0; x <= TITLE_X1; ++x) {
+            tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, x, y, 0);
+        }
+    }
+}
+
+static void restore_title_tiles(void)
+{
+    uint8_t x;
+    uint8_t y;
+    uint8_t i = 0;
+
+    for (y = TITLE_Y0; y <= TITLE_Y1; ++y) {
+        for (x = TITLE_X0; x <= TITLE_X1; ++x) {
+            tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, x, y, title_tiles_backup[i++]);
+        }
+    }
+}
+
+static void draw_shield_bar(void)
+{
+    int16_t clamped_shield = shield_points;
+
+    if (clamped_shield < 0)
+        clamped_shield = 0;
+    if (clamped_shield > SHIELD_START)
+        clamped_shield = SHIELD_START;
+
+    for (uint8_t segment = 0; segment < SHIELD_SEGMENTS; ++segment) {
+        int16_t segment_points = clamped_shield - (int16_t)(segment * SHIELD_POINTS_PER_SEGMENT);
+        uint8_t fill;
+        uint8_t tile;
+
+        if (segment_points <= 0)
+            fill = 0;
+        else if (segment_points >= SHIELD_POINTS_PER_SEGMENT)
+            fill = SHIELD_POINTS_PER_SEGMENT;
+        else
+            fill = (uint8_t)segment_points;
+
+        // Tiles 18..26 map from full(8/8) to empty(0/8).
+        tile = (uint8_t)(SHIELD_TILE_EMPTY - fill);
+        tilemap_write(MAIN_MAP_TILEMAP_DATA, (uint8_t)(SHIELD_BAR_X0 + segment), SHIELD_BAR_Y, tile);
+    }
+}
+
+static void start_demo_mode(void)
+{
+    game_mode = GAME_MODE_DEMO;
+    fire_start_armed = false;
+    shield_points = SHIELD_START;
+    draw_shield_bar();
+
+    restore_title_tiles();
+    asteroid_reset();
+    laser_init();
+    mothership_reset();
+
+    opl_silence_all();
+    sound_init();
+    music_enabled = true;
+    music_init(MUSIC_FILENAME);
+}
+
+static void start_gameplay_mode(void)
+{
+    game_mode = GAME_MODE_PLAYING;
+    shield_points = SHIELD_START;
+    draw_shield_bar();
+    fire_start_armed = false;
+
+    hide_title_tiles();
+
+    music_enabled = false;
+    opl_silence_all();
+    sound_init();
+
+    asteroid_reset();
+    laser_init();
+    mothership_reset();
 }
 
 static void apply_starting_tilemap_layout(void)
@@ -42,6 +186,10 @@ static void apply_starting_tilemap_layout(void)
     // MOTHERSHIP_MAP_TILEMAP_DATA: make (19,12) and (20,12) transparent.
     tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 19, 12, 0);
     tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 20, 12, 0);
+
+    // Deal with corners.
+    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 0 , 0 , 0);
+    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 39, 29, 0);
 
     // MAIN_MAP_TILEMAP_DATA: make (1,18) and (38,18) background.
     tilemap_write(MAIN_MAP_TILEMAP_DATA, 1, 18, 87);
@@ -148,7 +296,24 @@ static void init_graphics(void)
 
 }
 
-uint8_t vsync_last = 0;
+void process_audio_frame(void) {
+    if (!music_enabled) return;
+    
+    timer_accumulator += SONG_HZ;
+    while (timer_accumulator >= 60) {
+        update_music();
+        timer_accumulator -= 60;
+    }
+}
+
+static bool game_over_if_shields_depleted(void)
+{
+    if (shield_points > 0)
+        return false;
+
+    start_demo_mode();
+    return true;
+}
 
 int main(void)
 {
@@ -165,20 +330,50 @@ int main(void)
     score_init();
     init_input_system();
 
+    // Audio Setup
+    OPL_Config(1, OPL_ADDR);
+    opl_init();
+    sound_init();
+    backup_title_tiles();
+    start_demo_mode();
+
     while (true) {
         // Main game loop
         // 1. SYNC
         if (RIA.vsync == vsync_last) continue;
         vsync_last = RIA.vsync;
 
+        // 2. AUDIO
+        process_audio_frame();
+
         // Get Input from Keyboard/Gamepad
         handle_input();
 
-        if (mothership_is_landed()) {
-            if      (is_action_pressed(0, ACTION_THRUST))         laser_fire(LASER_UP);
-            else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) laser_fire(LASER_DOWN);
-            else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    laser_fire(LASER_LEFT);
-            else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   laser_fire(LASER_RIGHT);
+        if (game_mode == GAME_MODE_DEMO) {
+            bool fire_pressed = is_action_pressed(0, ACTION_FIRE);
+
+            // Debounce the start action: require a press, then a release.
+            if (fire_pressed) {
+                fire_start_armed = true;
+            } else if (fire_start_armed) {
+                start_gameplay_mode();
+            }
+        }
+
+        if (game_mode == GAME_MODE_PLAYING && mothership_is_landed()) {
+            bool fired = false;
+
+            if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);
+            else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) fired = laser_fire(LASER_DOWN);
+            else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    fired = laser_fire(LASER_LEFT);
+            else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   fired = laser_fire(LASER_RIGHT);
+
+            if (fired) {
+                shield_points -= SHIELD_FIRE_LOSS;
+                draw_shield_bar();
+                if (game_over_if_shields_depleted())
+                    continue;
+            }
         }
 
         starfield_update();
@@ -187,13 +382,30 @@ int main(void)
 
         if (mothership_is_landed()) {
             AsteroidResult result = asteroid_update();
-            if (result == ASTEROID_LASER_HIT)
+            if (result == ASTEROID_LASER_HIT) {
                 score_add(10);
-            else if (result == ASTEROID_MOTHERSHIP_HIT) {
+                if (game_mode == GAME_MODE_PLAYING && shield_points < SHIELD_START) {
+                    ++shield_points;
+                    draw_shield_bar();
+                }
+            } else if (result == ASTEROID_MOTHERSHIP_HIT) {
+                if (game_mode == GAME_MODE_PLAYING) {
+                    shield_points -= SHIELD_HIT_LOSS;
+                    draw_shield_bar();
+                    if (game_over_if_shields_depleted())
+                        continue;
+
+                    sound_play_destruction();
+                }
+
                 mothership_start_destruction();
                 asteroid_reset();
                 laser_init();
             }
+        }
+
+        if (game_mode == GAME_MODE_PLAYING) {
+            sound_update(mothership_is_descending(), asteroid_is_active());
         }
 
         }

@@ -193,6 +193,11 @@ void mothership_start_destruction(void)
     apply_destruction_palette();
 }
 
+bool mothership_is_descending(void)
+{
+    return mothership_state == MOTHERSHIP_DESCENDING;
+}
+
 bool mothership_is_landed(void)
 {
     return mothership_state == MOTHERSHIP_LANDED;
