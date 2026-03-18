@@ -38,6 +38,12 @@ static const OPL_Patch destruction_tone_patch = {
     .feedback = 0x0E,
 };
 
+static const OPL_Patch klaxon_patch = {
+    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xFF, .m_susrel = 0x0F, .m_wave = 0x01,
+    .c_ave = 0x21, .c_ksl = 0x00, .c_atdec = 0xFF, .c_susrel = 0x0F, .c_wave = 0x01,
+    .feedback = 0x0E,
+};
+
 static uint8_t descent_tick;
 static uint8_t descent_phase;
 static uint8_t descent_delay;
@@ -50,6 +56,7 @@ static bool asteroid_enabled;
 static uint8_t laser_timer;
 static uint8_t destruction_timer;
 static uint8_t destruction_phase;
+static uint16_t klaxon_timer;
 
 static void sfx_note_on(uint8_t channel, const OPL_Patch* patch, uint8_t note, uint8_t volume)
 {
@@ -76,6 +83,7 @@ void sound_init(void)
     laser_timer = 0;
     destruction_timer = 0;
     destruction_phase = 0;
+    klaxon_timer = 0;
 
     stop_channel(SFX_DESCENT_CH);
     stop_channel(SFX_LASER_CH);
@@ -100,6 +108,26 @@ void sound_play_destruction(void)
 
     // Front-load the impact, then let the rest of the sequence dissolve.
     sfx_note_on(SFX_EVENT_CH, &drum_snare, 64, 127);
+}
+
+void sound_play_klaxon(void)
+{
+    klaxon_timer = 4 * 60; // 4 seconds at 60Hz
+}
+
+static void update_klaxon_sound(void)
+{
+    if (klaxon_timer == 0) return;
+
+    if ((klaxon_timer % 15) == 0) {
+        uint8_t note = ((klaxon_timer / 15) % 2 == 0) ? 60 : 63;
+        sfx_note_on(SFX_EVENT_CH, &klaxon_patch, note, 127);
+    }
+
+    --klaxon_timer;
+    if (klaxon_timer == 0) {
+        stop_channel(SFX_EVENT_CH);
+    }
 }
 
 static void update_laser_sound(void)
@@ -222,6 +250,7 @@ void sound_update(bool mothership_descending, bool asteroid_present)
         return;
     }
 
+    update_klaxon_sound();
     update_descent_sound(mothership_descending);
     update_asteroid_sound(asteroid_present);
 }

@@ -55,6 +55,7 @@ extern unsigned LASER_CONFIG;        // Configuration struct address for laser s
 extern unsigned ASTEROID_CONFIG;     // Configuration struct address for asteroid sprite
 extern unsigned BEASTIE1_CONFIG;     // Configuration struct address for beastie sprite 1
 extern unsigned BEASTIE2_CONFIG;     // Configuration struct address for beastie sprite 2
+extern unsigned LANDER_CONFIG;      // Configuration struct address for lander sprite
 
 #define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
 

@@ -11,6 +11,7 @@
 #include "input.h"
 #include "score.h"
 #include "opl.h"
+#include "lander.h"
 #include "sound.h"
 
 unsigned MAIN_MAP_CONFIG;
@@ -58,6 +59,7 @@ static bool fire_start_armed = false;
 static uint8_t title_tiles_backup[TITLE_TILE_COUNT];
 static uint8_t terrain_rows_backup[TERRAIN_TILE_COUNT];
 static bool planet_surface_phase = false;
+static uint16_t planet_timer = 0;
 static bool game_music_started = false;
 
 #define SONG_HZ 60
@@ -137,6 +139,14 @@ static void set_deep_space_terrain(void)
     tilemap_fill_row(MAIN_MAP_TILEMAP_DATA, 24, DEEP_SPACE_ROW24_TILE);
 }
 
+static void update_launch_tube(void)
+{
+    // Open the launch tube at the planet, otherwise transparent
+    uint8_t tile = planet_surface_phase ? 78 : 0;
+    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 19, 12, tile);
+    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 20, 12, tile);
+}
+
 static void restore_terrain_rows(void)
 {
     uint8_t y;
@@ -153,10 +163,15 @@ static void restore_terrain_rows(void)
 static void toggle_surface_phase(void)
 {
     planet_surface_phase = !planet_surface_phase;
-    if (planet_surface_phase)
+    if (planet_surface_phase) {
         restore_terrain_rows();
-    else
+        planet_timer = 0;
+    } else {
         set_deep_space_terrain();
+    }
+
+    update_launch_tube();
+    asteroid_set_planet_phase(planet_surface_phase);
 }
 
 static void hide_title_tiles(void)
@@ -225,6 +240,8 @@ static void start_demo_mode(void)
     beasties_reset();
     mothership_reset();
     set_deep_space_terrain();
+    update_launch_tube();
+    asteroid_set_planet_phase(false);
 
     opl_silence_all();
     sound_init();
@@ -236,6 +253,7 @@ static void start_gameplay_mode(void)
 {
     game_mode = GAME_MODE_PLAYING;
     shield_points = SHIELD_START;
+    planet_timer = 0;
     planet_surface_phase = false;
     draw_shield_bar();
     fire_start_armed = false;
@@ -247,20 +265,21 @@ static void start_gameplay_mode(void)
     music_enabled = false;
     game_music_started = false;
 
+    lander_reset();
     asteroid_reset();
     laser_init();
     beasties_reset();
     mothership_reset();
     set_deep_space_terrain();
+    update_launch_tube();
+    asteroid_set_planet_phase(false);
 }
 
 static void apply_starting_tilemap_layout(void)
 {
     uint8_t y;
 
-    // MOTHERSHIP_MAP_TILEMAP_DATA: make (19,12) and (20,12) transparent.
-    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 19, 12, 0);
-    tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 20, 12, 0);
+    update_launch_tube();
 
     // Deal with corners.
     tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA, 0 , 0 , 0);
@@ -430,6 +449,7 @@ int main(void)
     laser_init();
     asteroid_init();
     beasties_init();
+    lander_init();
     score_init();
     init_input_system();
 
@@ -470,12 +490,26 @@ int main(void)
                 music_enabled = true;
             }
 
+            if (planet_surface_phase) {
+                planet_timer++;
+                if (planet_timer == 12 * 60) {
+                    sound_play_klaxon();
+                } else if (planet_timer == 16 * 60) {
+                    if (!asteroid_is_active()) asteroid_force_spawn();
+                }
+            }
+
             bool fired = false;
 
-            if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);
-            else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) fired = laser_fire(LASER_DOWN);
-            else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    fired = laser_fire(LASER_LEFT);
-            else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   fired = laser_fire(LASER_RIGHT);
+            // Laser is disabled if the lander is currently active and undocked
+            if (!lander_is_active()) {
+                if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);
+                else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) {
+                    if (!planet_surface_phase) fired = laser_fire(LASER_DOWN);
+                }
+                else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    fired = laser_fire(LASER_LEFT);
+                else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   fired = laser_fire(LASER_RIGHT);
+            }
 
             if (fired) {
                 shield_points -= SHIELD_FIRE_LOSS;
@@ -491,6 +525,7 @@ int main(void)
             toggle_surface_phase();
         laser_update();
         beasties_update(planet_surface_phase);
+        lander_update(planet_surface_phase);
 
         if (mothership_is_landed()) {
             AsteroidResult result = asteroid_update();
@@ -499,6 +534,10 @@ int main(void)
                 if (game_mode == GAME_MODE_PLAYING && shield_points < SHIELD_START) {
                     ++shield_points;
                     draw_shield_bar();
+                }
+                
+                if (planet_surface_phase) {
+                    toggle_surface_phase();
                 }
             } else if (result == ASTEROID_MOTHERSHIP_HIT) {
                 if (game_mode == GAME_MODE_PLAYING) {
