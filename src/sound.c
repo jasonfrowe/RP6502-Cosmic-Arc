@@ -85,7 +85,7 @@ void sound_init(void)
 void sound_play_laser(void)
 {
     laser_timer = LASER_TOTAL_TICKS;
-    sfx_note_on(SFX_LASER_CH, &laser_patch, 86, 118);
+    sfx_note_on(SFX_LASER_CH, &laser_patch, 86, 127);
 }
 
 void sound_play_destruction(void)
@@ -99,7 +99,7 @@ void sound_play_destruction(void)
     stop_channel(SFX_EVENT_CH);
 
     // Front-load the impact, then let the rest of the sequence dissolve.
-    sfx_note_on(SFX_EVENT_CH, &drum_snare, 64, 122);
+    sfx_note_on(SFX_EVENT_CH, &drum_snare, 64, 127);
 }
 
 static void update_laser_sound(void)
@@ -108,9 +108,9 @@ static void update_laser_sound(void)
         return;
 
     if (laser_timer == 7) {
-        sfx_note_on(SFX_LASER_CH, &laser_patch, 74, 108);
+        sfx_note_on(SFX_LASER_CH, &laser_patch, 74, 118);
     } else if (laser_timer == 4) {
-        sfx_note_on(SFX_LASER_CH, &laser_patch, 62, 92);
+        sfx_note_on(SFX_LASER_CH, &laser_patch, 62, 100);
     } else if (laser_timer == 1) {
         stop_channel(SFX_LASER_CH);
     }
@@ -128,7 +128,7 @@ static void update_destruction_sound(void)
 
     progress = (uint8_t)(((unsigned)(DESTRUCTION_TOTAL_TICKS - destruction_timer) * 127u) /
                          (DESTRUCTION_TOTAL_TICKS - 1u));
-    tone_volume = (uint8_t)(120u - progress);
+    tone_volume = (uint8_t)(127u - progress);
 
     if ((destruction_timer % 8u) == 0u) {
         uint8_t note = (uint8_t)(72u - (destruction_phase & 0x0Fu));
@@ -141,7 +141,7 @@ static void update_destruction_sound(void)
     if (destruction_timer == (DESTRUCTION_TOTAL_TICKS - 10u) ||
         destruction_timer == (DESTRUCTION_TOTAL_TICKS - 24u) ||
         destruction_timer == (DESTRUCTION_TOTAL_TICKS - 40u)) {
-        uint8_t noise_volume = (uint8_t)(108u - (progress / 2u));
+        uint8_t noise_volume = (uint8_t)(127u - (progress / 2u));
         const OPL_Patch* patch = (destruction_phase & 1u) ? &drum_hihat : &drum_snare;
         if (noise_volume < 24u)
             noise_volume = 24u;
@@ -181,7 +181,7 @@ static void update_descent_sound(bool mothership_descending)
 
     if (descent_tick == 0u) {
         uint8_t note = (uint8_t)(67u - (descent_phase & 0x07u));
-        sfx_note_on(SFX_DESCENT_CH, &descent_patch, note, 112);
+        sfx_note_on(SFX_DESCENT_CH, &descent_patch, note, 127);
         descent_phase = (uint8_t)((descent_phase + 1u) & 0x0Fu);
     }
 
@@ -206,7 +206,7 @@ static void update_asteroid_sound(bool asteroid_present)
 
     if (asteroid_tick == 0u) {
         uint8_t note = (uint8_t)(44u + (asteroid_phase & 0x03u));
-        sfx_note_on(SFX_EVENT_CH, &asteroid_patch, note, 104);
+        sfx_note_on(SFX_EVENT_CH, &asteroid_patch, note, 127);
         asteroid_phase = (uint8_t)((asteroid_phase + 1u) & 0x07u);
     }
 
