@@ -19,6 +19,7 @@ unsigned LASER_CONFIG;
 unsigned ASTEROID_CONFIG;
 unsigned BEASTIE1_CONFIG;
 unsigned BEASTIE2_CONFIG;
+unsigned LANDER_CONFIG;
 
 #define TITLE_X0 8
 #define TITLE_X1 32
@@ -57,6 +58,7 @@ static bool fire_start_armed = false;
 static uint8_t title_tiles_backup[TITLE_TILE_COUNT];
 static uint8_t terrain_rows_backup[TERRAIN_TILE_COUNT];
 static bool planet_surface_phase = false;
+static bool game_music_started = false;
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -242,8 +244,8 @@ static void start_gameplay_mode(void)
 
     opl_silence_all();
     sound_init();
-    music_enabled = true;
-    music_init(GAME_MUSIC_FILENAME);
+    music_enabled = false;
+    game_music_started = false;
 
     asteroid_reset();
     laser_init();
@@ -370,8 +372,17 @@ static void init_graphics(void)
     xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, log_size, 3); // 8x8 sprites
     xram0_struct_set(BEASTIE2_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
+    LANDER_CONFIG = BEASTIE2_CONFIG + sizeof(vga_mode4_sprite_t);
+
+    xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
+    xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
+    xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LANDER_DATA);
+    xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, log_size, 4); // 16x16 sprites
+    xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
+
+
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(4, 0, LASER_CONFIG, 4, 1, 0, SPACE_HEIGHT) < 0) {
+    if (xreg_vga_mode(4, 0, LASER_CONFIG, 5, 1, 0, SPACE_HEIGHT) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -453,6 +464,12 @@ int main(void)
         }
 
         if (game_mode == GAME_MODE_PLAYING && mothership_is_landed()) {
+            if (!game_music_started) {
+                game_music_started = true;
+                music_init(GAME_MUSIC_FILENAME);
+                music_enabled = true;
+            }
+
             bool fired = false;
 
             if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);

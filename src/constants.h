@@ -27,7 +27,10 @@
 #define BEASTIES_DATA           (ASTEROID_DATA + ASTEROID_DATA_SIZE) // Address for beasties sprite data
 #define BEASTIES_DATA_SIZE      0x0A00U // Size of beasties sprite (20 parts * 8x8 * 2 bytes = 2560 bytes)
 
-#define SPRITE_DATA_END         (BEASTIES_DATA + BEASTIES_DATA_SIZE) // End address for sprite data
+#define LANDER_DATA             (BEASTIES_DATA + BEASTIES_DATA_SIZE) // Address for lander sprite data
+#define LANDER_DATA_SIZE        0x0400U // Size of lander sprite data
+
+#define SPRITE_DATA_END         (LANDER_DATA + LANDER_DATA_SIZE) // End address for sprite data
 
 // Main Map configuration
 #define MAIN_MAP_WIDTH_TILES 40
