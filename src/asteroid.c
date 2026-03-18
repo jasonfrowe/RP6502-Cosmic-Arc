@@ -25,6 +25,7 @@ static uint8_t asteroid_anim_tick;
 static uint8_t asteroid_spawn_tick;
 static uint16_t asteroid_rng;
 static bool asteroid_planet_phase = false;
+static bool asteroid_spawns_paused = false;
 
 static uint16_t next_rand(void)
 {
@@ -127,8 +128,8 @@ void asteroid_init(void)
 AsteroidResult asteroid_update(void)
 {
     if (!asteroid_active) {
-        // Stop natural asteroid spawning during the planet phase delay
-        if (!asteroid_planet_phase && ++asteroid_spawn_tick >= ASTEROID_SPAWN_DELAY) {
+        // Stop natural asteroid spawning if paused
+        if (!asteroid_spawns_paused && ++asteroid_spawn_tick >= ASTEROID_SPAWN_DELAY) {
             asteroid_spawn_tick = 0;
             spawn_asteroid();
         }
@@ -173,6 +174,11 @@ void asteroid_reset(void)
 void asteroid_set_planet_phase(bool active)
 {
     asteroid_planet_phase = active;
+}
+
+void asteroid_set_spawns_paused(bool paused)
+{
+    asteroid_spawns_paused = paused;
 }
 
 void asteroid_force_spawn(void)

@@ -172,6 +172,7 @@ static void toggle_surface_phase(void)
 
     update_launch_tube();
     asteroid_set_planet_phase(planet_surface_phase);
+    asteroid_set_spawns_paused(planet_surface_phase && game_mode == GAME_MODE_PLAYING);
 }
 
 static void hide_title_tiles(void)
@@ -242,6 +243,7 @@ static void start_demo_mode(void)
     set_deep_space_terrain();
     update_launch_tube();
     asteroid_set_planet_phase(false);
+    asteroid_set_spawns_paused(false);
 
     opl_silence_all();
     sound_init();
@@ -273,6 +275,7 @@ static void start_gameplay_mode(void)
     set_deep_space_terrain();
     update_launch_tube();
     asteroid_set_planet_phase(false);
+    asteroid_set_spawns_paused(false);
 }
 
 static void apply_starting_tilemap_layout(void)
@@ -525,7 +528,7 @@ int main(void)
             toggle_surface_phase();
         laser_update();
         beasties_update(planet_surface_phase);
-        lander_update(planet_surface_phase);
+        lander_update(planet_surface_phase && game_mode == GAME_MODE_PLAYING);
 
         if (mothership_is_landed()) {
             AsteroidResult result = asteroid_update();

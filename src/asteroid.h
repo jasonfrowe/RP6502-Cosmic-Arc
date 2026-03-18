@@ -13,6 +13,7 @@ bool asteroid_is_active(void);
 AsteroidResult asteroid_update(void);
 
 void asteroid_set_planet_phase(bool active);
+void asteroid_set_spawns_paused(bool paused);
 void asteroid_force_spawn(void);
 
 #endif // ASTEROID_H
