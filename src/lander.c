@@ -9,12 +9,33 @@
 #define LANDER_START_Y 88
 #define LANDER_SPEED 1
 
+// Allowed movement zones (8px tiles, 16x16 sprite top-left bounds)
+// Surface: tiles (0,13)-(39,21)
+#define ZONE_SURFACE_X_MIN  0
+#define ZONE_SURFACE_X_MAX  (SCREEN_WIDTH - 16)  // 304: right edge of col 39
+#define ZONE_SURFACE_Y_MIN  (14 * 8) - 2            // 112: top of row 14
+#define ZONE_SURFACE_Y_MAX  (22 * 8 - 16)        // 160: keeps sprite within row 21
+// Launch tube: tiles (19,11)-(20,12) — exactly 16px wide, one sprite wide
+#define ZONE_TUBE_X         (19 * 8)             // 152
+#define ZONE_TUBE_Y_MIN     (11 * 8)             // 88: dock/start position
+#define ZONE_TUBE_Y_MAX     (14 * 8 - 3)         // 111: bottom of row 13
+
 static int16_t lander_x;
 static int16_t lander_y;
 static bool lander_active;
 static uint8_t launch_delay;
 static uint8_t anim_tick;
 static uint8_t frame;
+
+static bool lander_in_zone(int16_t x, int16_t y)
+{
+    if (x >= ZONE_SURFACE_X_MIN && x <= ZONE_SURFACE_X_MAX &&
+        y >= ZONE_SURFACE_Y_MIN && y <= ZONE_SURFACE_Y_MAX)
+        return true;
+    if (x == ZONE_TUBE_X && y >= ZONE_TUBE_Y_MIN && y <= ZONE_TUBE_Y_MAX)
+        return true;
+    return false;
+}
 
 static void write_lander_pos(int16_t x, int16_t y)
 {
@@ -68,20 +89,25 @@ void lander_update(bool planet_phase)
             launch_delay = 0;
         }
     } else {
-        // Active movement
-        if (is_action_pressed(0, ACTION_THRUST)) lander_y -= LANDER_SPEED;
-        if (is_action_pressed(0, ACTION_REVERSE_THRUST)) lander_y += LANDER_SPEED;
-        if (is_action_pressed(0, ACTION_ROTATE_LEFT)) lander_x -= LANDER_SPEED;
-        if (is_action_pressed(0, ACTION_ROTATE_RIGHT)) lander_x += LANDER_SPEED;
+        // Active movement constrained to allowed zones
+        int16_t new_x = lander_x;
+        int16_t new_y = lander_y;
+        if (is_action_pressed(0, ACTION_THRUST))         new_y -= LANDER_SPEED;
+        if (is_action_pressed(0, ACTION_REVERSE_THRUST)) new_y += LANDER_SPEED;
+        if (is_action_pressed(0, ACTION_ROTATE_LEFT))    new_x -= LANDER_SPEED;
+        if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   new_x += LANDER_SPEED;
 
-        // Clamp lander position to screen boundaries
-        if (lander_x < 0) lander_x = 0;
-        if (lander_x > 320 - 16) lander_x = 320 - 16;
-        if (lander_y < 0) lander_y = 0;
-        if (lander_y > 240 - 16) lander_y = 240 - 16;
+        if (lander_in_zone(new_x, new_y)) {
+            lander_x = new_x;
+            lander_y = new_y;
+        } else {
+            // Slide along boundaries by trying each axis independently
+            if (lander_in_zone(new_x, lander_y)) lander_x = new_x;
+            if (lander_in_zone(lander_x, new_y)) lander_y = new_y;
+        }
 
-        // Check docking condition: Return to (151..153, <=88)
-        if (lander_x >= 151 && lander_x <= 153 && lander_y <= 88) {
+        // Dock when returned to the top of the launch tube
+        if (lander_y <= ZONE_TUBE_Y_MIN) {
             lander_active = false;
             launch_delay = 0;
         }
