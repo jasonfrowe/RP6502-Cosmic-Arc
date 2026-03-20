@@ -61,6 +61,7 @@ static uint8_t terrain_rows_backup[TERRAIN_TILE_COUNT];
 static bool planet_surface_phase = false;
 static uint16_t planet_timer = 0;
 static bool game_music_started = false;
+static uint8_t space_kills = 0;
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -257,6 +258,7 @@ static void start_gameplay_mode(void)
     shield_points = SHIELD_START;
     planet_timer = 0;
     planet_surface_phase = false;
+    space_kills = 0;
     draw_shield_bar();
     fire_start_armed = false;
 
@@ -272,6 +274,8 @@ static void start_gameplay_mode(void)
     laser_init();
     beasties_reset();
     mothership_reset();
+    mothership_consume_respawned_after_destruction(); // discard any stale demo respawn
+    score_init();
     set_deep_space_terrain();
     update_launch_tube();
     asteroid_set_planet_phase(false);
@@ -524,8 +528,15 @@ int main(void)
 
         starfield_update();
         mothership_update();
-        if (mothership_consume_respawned_after_destruction())
-            toggle_surface_phase();
+        if (mothership_consume_respawned_after_destruction()) {
+            if (game_mode == GAME_MODE_DEMO) {
+                toggle_surface_phase();
+            } else if (planet_surface_phase) {
+                // Destroyed on planet surface — return to deep space.
+                toggle_surface_phase();
+            }
+            // In gameplay deep space: ship respawns in deep space, no toggle.
+        }
         laser_update();
         beasties_update(planet_surface_phase);
         lander_update(planet_surface_phase && game_mode == GAME_MODE_PLAYING);
@@ -538,8 +549,14 @@ int main(void)
                     ++shield_points;
                     draw_shield_bar();
                 }
-                
-                if (planet_surface_phase) {
+
+                if (game_mode == GAME_MODE_PLAYING && !planet_surface_phase) {
+                    // Count kills in deep space; transition to planet after 8.
+                    if (++space_kills >= 8) {
+                        space_kills = 0;
+                        toggle_surface_phase();
+                    }
+                } else if (planet_surface_phase) {
                     toggle_surface_phase();
                 }
             } else if (result == ASTEROID_MOTHERSHIP_HIT) {
