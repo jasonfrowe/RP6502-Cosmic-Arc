@@ -62,6 +62,7 @@ static bool planet_surface_phase = false;
 static uint16_t planet_timer = 0;
 static bool game_music_started = false;
 static uint8_t space_kills = 0;
+static bool laser_fire_held = false;
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -232,6 +233,7 @@ static void start_demo_mode(void)
 {
     game_mode = GAME_MODE_DEMO;
     fire_start_armed = false;
+    laser_fire_held = false;
     shield_points = SHIELD_START;
     planet_surface_phase = false;
     draw_shield_bar();
@@ -259,6 +261,7 @@ static void start_gameplay_mode(void)
     planet_timer = 0;
     planet_surface_phase = false;
     space_kills = 0;
+    laser_fire_held = false;
     draw_shield_bar();
     fire_start_armed = false;
 
@@ -508,14 +511,26 @@ int main(void)
 
             bool fired = false;
 
-            // Laser is disabled if the lander is currently active and undocked
+            // Laser fires only when the direction button is freshly pressed (not held
+            // from the previous shot) and no laser is already active on screen.
             if (!lander_is_active()) {
-                if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);
-                else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) {
-                    if (!planet_surface_phase) fired = laser_fire(LASER_DOWN);
+                bool any_dir = is_action_pressed(0, ACTION_THRUST) ||
+                               (!planet_surface_phase && is_action_pressed(0, ACTION_REVERSE_THRUST)) ||
+                               is_action_pressed(0, ACTION_ROTATE_LEFT) ||
+                               is_action_pressed(0, ACTION_ROTATE_RIGHT);
+
+                if (!any_dir) {
+                    laser_fire_held = false;
+                } else if (!laser_fire_held) {
+                    if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);
+                    else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) {
+                        if (!planet_surface_phase) fired = laser_fire(LASER_DOWN);
+                    }
+                    else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    fired = laser_fire(LASER_LEFT);
+                    else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   fired = laser_fire(LASER_RIGHT);
+
+                    if (fired) laser_fire_held = true;
                 }
-                else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    fired = laser_fire(LASER_LEFT);
-                else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   fired = laser_fire(LASER_RIGHT);
             }
 
             if (fired) {

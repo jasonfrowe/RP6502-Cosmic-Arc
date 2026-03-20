@@ -7,7 +7,6 @@
 
 #define LASER_SPEED      6
 #define LASER_HALF_SIZE  16   // 32x32 sprite half-width
-#define LASER_COOLDOWN   20  // frames before another shot is allowed
 
 // Frame 0: left/right (horizontal beam)
 // Frame 1: up/down   (vertical beam)
@@ -20,7 +19,6 @@ static int16_t laser_y;
 static int8_t  laser_dx;
 static int8_t  laser_dy;
 static bool    laser_active   = false;
-static uint8_t laser_cooldown = 0;
 
 static void write_laser_pos(int16_t x, int16_t y)
 {
@@ -30,15 +28,13 @@ static void write_laser_pos(int16_t x, int16_t y)
 
 static void deactivate_laser(void)
 {
-    laser_active   = false;
-    laser_cooldown = LASER_COOLDOWN;
+    laser_active = false;
     write_laser_pos(-64, -64);
 }
 
 void laser_init(void)
 {
-    laser_active   = false;
-    laser_cooldown = 0;
+    laser_active = false;
     laser_x = -64;
     laser_y = -64;
     write_laser_pos(-64, -64);
@@ -46,7 +42,7 @@ void laser_init(void)
 
 bool laser_fire(LaserDirection dir)
 {
-    if (laser_active || laser_cooldown > 0 || dir == LASER_NONE)
+    if (laser_active || dir == LASER_NONE)
         return false;
 
     laser_active = true;
@@ -84,9 +80,6 @@ bool laser_fire(LaserDirection dir)
 
 void laser_update(void)
 {
-    if (laser_cooldown > 0)
-        --laser_cooldown;
-
     if (!laser_active)
         return;
 

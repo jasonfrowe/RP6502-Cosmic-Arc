@@ -7,7 +7,7 @@
 
 #define LANDER_START_X 152
 #define LANDER_START_Y 88
-#define LANDER_SPEED 2
+#define LANDER_SPEED 1
 
 static int16_t lander_x;
 static int16_t lander_y;
@@ -87,7 +87,7 @@ void lander_update(bool planet_phase)
         }
     }
 
-    if (++anim_tick >= 8) {
+    if (++anim_tick >= 4) {
         anim_tick = 0;
         frame ^= 1u;
         write_lander_frame(frame);
