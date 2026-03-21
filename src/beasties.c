@@ -20,6 +20,7 @@ typedef struct {
     uint8_t frame;
     uint8_t tick;
     bool visible;
+    bool paused;    // true while beam is capturing or after capture
 } Beastie;
 
 static Beastie beastie_a;
@@ -55,13 +56,14 @@ static void reset_one(Beastie* beastie, int16_t x, int8_t dx, uint8_t type)
     beastie->frame = 0;
     beastie->tick = 0;
     beastie->visible = false;
+    beastie->paused = false;
 }
 
 static void update_one(Beastie* beastie, unsigned config, bool enabled)
 {
     bool moving_right;
 
-    if (!enabled) {
+    if (!enabled || beastie->paused) {
         if (beastie->visible) {
             hide_beastie(config);
             beastie->visible = false;
@@ -115,4 +117,17 @@ void beasties_update(bool enabled)
 {
     update_one(&beastie_a, BEASTIE1_CONFIG, enabled);
     update_one(&beastie_b, BEASTIE2_CONFIG, enabled);
+}
+
+// Returns x of beastie 0=A or 1=B, or -1 if paused/captured.
+int16_t beasties_get_x(uint8_t idx)
+{
+    Beastie *b = (idx == 0) ? &beastie_a : &beastie_b;
+    return b->paused ? (int16_t)-1 : b->x;
+}
+
+void beasties_set_paused(uint8_t idx, bool paused)
+{
+    Beastie *b = (idx == 0) ? &beastie_a : &beastie_b;
+    b->paused = paused;
 }

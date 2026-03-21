@@ -5,6 +5,7 @@
 #include "lander.h"
 #include "input.h"
 #include "palette.h"
+#include "beasties.h"
 
 #define LANDER_START_X 152
 #define LANDER_START_Y (112 + 4) 
@@ -31,7 +32,7 @@
 //   8:[oooooxxx] 9:[ooooooxx] 10:[ooooooox] <- left-column overflow (offsets 5,6,7)
 #define BEAM_FIRST_BLUE          191u
 #define BEAM_FIRST_GREEN         202u
-#define BEAM_GREEN_ROW_START      20    // rows >= 20 use green tiles (near ground)
+#define BEAM_GREEN_ROW_START      21    // only the bottom row uses green tiles
 #define BEAM_TILE_ROW_END         21    // last MOTHERSHIP_MAP row ((191-16)/8 = 21)
 #define BEAM_FRAME_SIZE          (8u * 8u * 2u)   // bytes per 8x8 sprite frame
 #define BEAM_ANIM_TICKS           6
@@ -69,6 +70,10 @@ static uint8_t beam_anim_frame;
 static uint8_t beam_anim_tick;
 static uint8_t beam_flicker_tick;
 static uint8_t beam_pal_phase;
+static bool    beam_has_beastie;
+static uint8_t beam_beastie_idx;
+static int16_t beam_beastie_y;
+static bool    beastie_captured;
 
 static void beam_palette_write(uint8_t index, uint16_t color)
 {
@@ -143,10 +148,20 @@ static void beam_draw_tiles(void)
     if (prev_beam_left_px != beam_left || prev_beam_row_start != row_start)
         beam_erase();
 
-    for (row = row_start; row <= BEAM_TILE_ROW_END; ++row) {
-        beam_tile_write(tile_col, row, beam_tile_id(left_idx, row));
-        if (has_right)
-            beam_tile_write(tile_col + 1u, row, beam_tile_id(right_idx, row));
+    {
+        // If a beastie is rising, clear that tile row so the beam sprite shows through.
+        // beam_beastie_y is a screen pixel y; convert to tilemap row by subtracting
+        // the MOTHERSHIP tilemap y_pos_px offset (MOTHERSHIP_LAND_Y = 16).
+        uint8_t sprite_row = beam_has_beastie
+            ? (uint8_t)((int16_t)(beam_beastie_y - MOTHERSHIP_LAND_Y) / 8)
+            : 0xFFu;
+        for (row = row_start; row <= BEAM_TILE_ROW_END; ++row) {
+            uint8_t lt = (row == sprite_row) ? 0u : beam_tile_id(left_idx, row);
+            uint8_t rt = (row == sprite_row) ? 0u : beam_tile_id(right_idx, row);
+            beam_tile_write(tile_col, row, lt);
+            if (has_right)
+                beam_tile_write(tile_col + 1u, row, rt);
+        }
     }
     prev_beam_left_px   = beam_left;
     prev_beam_row_start = row_start;
@@ -173,12 +188,18 @@ void lander_init(void)
 void lander_reset(void)
 {
     if (beam_active) {
+        if (beam_has_beastie) {
+            beasties_set_paused(beam_beastie_idx, false);
+            beam_has_beastie = false;
+        }
         beam_erase();
         xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
         xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
     }
     beam_active = false;
     beam_flicker_on = false;
+    beam_has_beastie = false;
+    beastie_captured = false;
     prev_beam_left_px = -1;
     beam_anim_frame = 0;
     beam_anim_tick = 0;
@@ -252,10 +273,40 @@ void lander_update(bool planet_phase)
                 beam_flicker_on = true;
                 beam_apply_palette(true);
             }
+            // Every frame: try to lock onto a beastie walking under the beam
+            if (!beam_has_beastie) {
+                uint8_t i;
+                for (i = 0; i < 2u; ++i) {
+                    int16_t bx = beasties_get_x(i);
+                    if (bx >= 0) {
+                        int16_t diff = (bx + 4) - (lander_x + 8);
+                        if (diff < 0) diff = -diff;
+                        if (diff <= 8) {
+                            beam_has_beastie = true;
+                            beam_beastie_idx = i;
+                            // Start tile-aligned at the bottom beam row so the sprite
+                            // always occupies exactly one tile row as it rises.
+                            beam_beastie_y = (int16_t)(MOTHERSHIP_LAND_Y + BEAM_TILE_ROW_END * 8);
+                            beasties_set_paused(i, true);
+                            break;
+                        }
+                    }
+                }
+            }
             beam_draw_tiles();
             if (++beam_anim_tick >= BEAM_ANIM_TICKS) {
                 beam_anim_tick = 0;
-                if (++beam_anim_frame >= 4u) beam_anim_frame = 0;
+                if (++beam_anim_frame >= 4u) {
+                    beam_anim_frame = 0;
+                    if (beam_has_beastie) {
+                        beam_beastie_y -= 8;
+                        if (beam_beastie_y <= lander_y + 8) {
+                            // Beastie reaches the lander — captured!
+                            beastie_captured = true;
+                            beam_has_beastie = false;
+                        }
+                    }
+                }
             }
             if (++beam_flicker_tick >= BEAM_FLICKER_TICKS) {
                 beam_flicker_tick = 0;
@@ -263,13 +314,25 @@ void lander_update(bool planet_phase)
                 beam_flicker_on = (bool)beam_flicker[beam_pal_phase];
                 beam_apply_palette(beam_flicker_on);
             }
-            unsigned beam_ptr = BEAM_DATA + (unsigned)beam_anim_frame * BEAM_FRAME_SIZE;
-            xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, beam_ptr);
-            xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, (int16_t)(lander_x + 4));
-            xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, (int16_t)(BEASTIE_GROUND_Y + 1));
+            // BEAM_CONFIG sprite is only visible while a beastie is rising.
+            // When idle (no beastie), the tile beam is sufficient — the sprite
+            // must be hidden or it peeks below the last tile row.
+            if (beam_has_beastie) {
+                unsigned beam_ptr = BEAM_DATA + (unsigned)beam_anim_frame * BEAM_FRAME_SIZE;
+                xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, beam_ptr);
+                xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, (int16_t)(lander_x + 4));
+                xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, beam_beastie_y);
+            } else {
+                xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
+                xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
+            }
         } else if (beam_active) {
             beam_active = false;
             beam_flicker_on = false;
+            if (beam_has_beastie) {
+                beasties_set_paused(beam_beastie_idx, false);
+                beam_has_beastie = false;
+            }
             beam_erase();
             beam_restore_palette();
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
@@ -288,4 +351,11 @@ void lander_update(bool planet_phase)
     } else {
         write_lander_pos(-32, -32);
     }
+}
+
+bool lander_consume_beastie_captured(void)
+{
+    if (!beastie_captured) return false;
+    beastie_captured = false;
+    return true;
 }
