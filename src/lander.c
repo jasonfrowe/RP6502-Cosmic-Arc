@@ -16,12 +16,12 @@
 // Surface: tiles (0,13)-(39,21) — narrowed 12px each side to keep clear of tower cols 0/39
 #define ZONE_SURFACE_X_MIN  12
 #define ZONE_SURFACE_X_MAX  (SCREEN_WIDTH - 16 - 12)  // 292: right edge stays clear of col 39
-#define ZONE_SURFACE_Y_MIN  (15 * 8) - 0            // 112: top of row 14
-#define ZONE_SURFACE_Y_MAX  (22 * 8 - 8)        // 160: keeps sprite within row 21
+#define ZONE_SURFACE_Y_MIN  (15 * 8) - 0              // 120: top of row 15
+#define ZONE_SURFACE_Y_MAX  (22 * 8 - 0)              // 176: keeps sprite within row 22
 // Launch tube: tiles (19,11)-(20,12) — exactly 16px wide, one sprite wide
-#define ZONE_TUBE_X         (19 * 8)             // 152
-#define ZONE_TUBE_Y_MIN     (14 * 8 + 4)             // 88: dock/start position
-#define ZONE_TUBE_Y_MAX     (15 * 8 - 1)         // 111: bottom of row 13
+#define ZONE_TUBE_X         (19 * 8)                  // 152
+#define ZONE_TUBE_Y_MIN     (14 * 8 + 4)              // 116: dock/start position
+#define ZONE_TUBE_Y_MAX     (15 * 8 - 1)              // 119: bottom of row 14
 
 // Beam tile layout: 4px-wide beam at 8 sub-pixel offsets within an 8px tile column.
 // Blue set (main beam): tile IDs BEAM_FIRST_BLUE + index (0-10)
@@ -202,6 +202,8 @@ void lander_reset(void)
     beam_active = false;
     beam_flicker_on = false;
     beam_has_beastie = false;
+    sound_set_lander_motor(false);
+    sound_set_beam(false);
     {
         uint8_t i;
         for (i = 0; i < beasties_aboard; ++i)
@@ -381,6 +383,14 @@ void lander_get_pos(int16_t *x, int16_t *y)
 {
     *x = lander_x;
     *y = lander_y;
+}
+
+void lander_respawn(void)
+{
+    lander_reset();
+    lander_active = true;
+    lander_y = LANDER_START_Y + 8;
+    write_lander_pos(lander_x, lander_y);
 }
 
 bool lander_consume_docked_beasties(uint8_t *count)

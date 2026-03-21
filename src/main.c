@@ -608,7 +608,7 @@ int main(void)
         lander_update(planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING);
         if (planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING) {
             if (defense_update())
-                lander_reset();
+                lander_respawn();
         }
 
         if (game_mode == GAME_MODE_PLAYING && planet_surface_phase) {

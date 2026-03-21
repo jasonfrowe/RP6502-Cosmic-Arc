@@ -10,26 +10,27 @@
 // Gun (col 1 / col 38) is always at the tower top row, tracking the sub-pixel.
 // Pulse sweeps cols 1-38 at the current gun row when fired.
 
-#define TOWER_ROW0        18
+#define TOWER_ROW0        15
 #define TOWER_ROW1        22
 #define TOWER_COL_L        0
 #define TOWER_COL_R       39
 #define GUN_COL_L          1
 #define GUN_COL_R         38
 #define TOWER_TILE_BASE   27   // 8 sub-pixel frames (tiles 27-34)
-#define GUN_L_TILE_BASE   35   // 7 frames (35-41); frame 0 = gun at tile top
-#define GUN_R_TILE_BASE   42   // 7 frames (42-48)
 #define PULSE_TILE_BASE   49   // 8 frames (49-56), frozen at fire moment
 #define BG_TILE           87
 
 #define TOWER_SUBPIXELS    8   // sub-pixel steps per tile row
 // phase 0  = top of row 18 (fully extended)
 // phase 39 = bottom of row 22 (fully retracted)
-#define TOWER_PHASE_COUNT 40   // (TOWER_ROW1-TOWER_ROW0+1) * TOWER_SUBPIXELS
-#define GUN_FRAME_COUNT    7   // frames 0-6; clamped from subpixels 0-7
+#define TOWER_PHASE_COUNT (TOWER_ROW1-TOWER_ROW0+1) * TOWER_SUBPIXELS
 #define TOWER_ANIM_TICKS   4   // frames per phase step
+
+// Gun tile lookup: index matches tower sub-pixel (0-7).
+static const uint8_t gun_l_tiles[8] = {35, 213, 36, 37, 38, 39, 40, 41};
+static const uint8_t gun_r_tiles[8] = {42, 214, 43, 44, 45, 46, 47, 48};
 #define PULSE_PERIOD      180  // ~3 s at 60 Hz between pulses
-#define PULSE_DURATION     20  // frames the pulse is visible
+#define PULSE_DURATION     5   // frames the pulse is visible (~quick flash)
 
 // tower_dir: false = rising (phase --), true = sinking (phase ++)
 static uint8_t tower_phase;
@@ -57,13 +58,6 @@ static uint8_t get_subpixel(void)
     return (uint8_t)(tower_phase % TOWER_SUBPIXELS);
 }
 
-// Gun frame 0 = gun at top of tile, frame 6 = gun at bottom; tracks sub-pixel.
-static uint8_t get_gun_frame(void)
-{
-    uint8_t sp = get_subpixel();
-    return (sp < GUN_FRAME_COUNT) ? sp : (uint8_t)(GUN_FRAME_COUNT - 1u);
-}
-
 static void draw_towers(void)
 {
     uint8_t top_row = get_top_row();
@@ -88,7 +82,7 @@ static void draw_towers(void)
 static void draw_guns(void)
 {
     uint8_t top_row = get_top_row();
-    uint8_t gf = get_gun_frame();
+    uint8_t sp = get_subpixel();
     uint8_t row;
 
     // Clear all rows the gun could previously occupy, then draw at current top.
@@ -96,8 +90,8 @@ static void draw_guns(void)
         dtile(GUN_COL_L, row, BG_TILE);
         dtile(GUN_COL_R, row, BG_TILE);
     }
-    dtile(GUN_COL_L, top_row, (uint8_t)(GUN_L_TILE_BASE + gf));
-    dtile(GUN_COL_R, top_row, (uint8_t)(GUN_R_TILE_BASE + gf));
+    dtile(GUN_COL_L, top_row, gun_l_tiles[sp]);
+    dtile(GUN_COL_R, top_row, gun_r_tiles[sp]);
 }
 
 void defense_init(void)
@@ -146,7 +140,7 @@ bool defense_update(void)
     if (pulse_timer > 0 && lander_is_active()) {
         lander_get_pos(&lx, &ly);
         (void)lx; // horizontal zone restriction keeps lander within pulse range
-        if ((ly + 16) > (int16_t)((uint16_t)pulse_row * 8u) &&
+        if ((ly + 5) > (int16_t)((uint16_t)pulse_row * 8u) &&
             ly < (int16_t)(((uint16_t)pulse_row + 1u) * 8u))
             hit = true;
     }
@@ -173,15 +167,15 @@ bool defense_update(void)
         --pulse_timer;
         if (pulse_timer == 0) {
             uint8_t top_row = get_top_row();
-            uint8_t gf = get_gun_frame();
+            uint8_t sp = get_subpixel();
             uint8_t row, col;
             // Clear all gun rows (gun may have moved during pulse), then redraw.
             for (row = TOWER_ROW0; row <= TOWER_ROW1; ++row) {
                 dtile(GUN_COL_L, row, BG_TILE);
                 dtile(GUN_COL_R, row, BG_TILE);
             }
-            dtile(GUN_COL_L, top_row, (uint8_t)(GUN_L_TILE_BASE + gf));
-            dtile(GUN_COL_R, top_row, (uint8_t)(GUN_R_TILE_BASE + gf));
+            dtile(GUN_COL_L, top_row, gun_l_tiles[sp]);
+            dtile(GUN_COL_R, top_row, gun_r_tiles[sp]);
             // Clear the center columns of the pulse row.
             for (col = GUN_COL_L + 1u; col < GUN_COL_R; ++col)
                 dtile(col, pulse_row, BG_TILE);
