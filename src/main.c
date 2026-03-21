@@ -575,12 +575,27 @@ int main(void)
         }
         if (mothership_consume_respawned_after_destruction()) {
             if (game_mode == GAME_MODE_DEMO) {
-                toggle_surface_phase();
+                // Demo: use normal toggle (departure already bypassed by destruction).
+                planet_surface_phase = !planet_surface_phase;
+                if (!planet_surface_phase) set_deep_space_terrain();
+                else restore_terrain_rows();
+                update_launch_tube();
+                asteroid_set_planet_phase(planet_surface_phase);
+                asteroid_set_spawns_paused(false);
             } else if (planet_surface_phase) {
-                // Destroyed on planet surface — return to deep space.
-                toggle_surface_phase();
+                // Destroyed on planet surface — return to deep space immediately;
+                // no departure scroll since destruction already played.
+                permanent_captures += beasties_delivered;
+                beasties_delivered = 0;
+                if (permanent_captures >= 2) permanent_captures = 0;
+                planet_surface_phase = false;
+                set_deep_space_terrain();
+                update_launch_tube();
+                beasties_hide_all();
+                asteroid_set_planet_phase(false);
+                asteroid_set_spawns_paused(false);
             }
-            // In gameplay deep space: ship respawns in deep space, no toggle.
+            // In gameplay deep space: ship respawns in deep space, no change needed.
         }
         laser_update();
         beasties_update(planet_surface_phase && mothership_is_landed());
