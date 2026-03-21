@@ -16,7 +16,7 @@ rp6502_asset(CosmicArc 0x13F20 images/laser.bin)
 rp6502_asset(CosmicArc 0x14F20 images/Asteroid.bin)
 rp6502_asset(CosmicArc 0x15120 images/beasties.bin)
 rp6502_asset(CosmicArc 0x15B20 images/lander.bin)
-rp6502_asset(CosmicArc 0x16320 images/beam.bin)
+rp6502_asset(CosmicArc 0x16920 images/beam.bin)
 rp6502_asset(CosmicArc help src/help.txt)
 
 rp6502_executable(CosmicArc

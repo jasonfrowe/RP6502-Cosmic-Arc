@@ -14,6 +14,10 @@
 
 // Allowed movement zones (8px tiles, 16x16 sprite top-left bounds)
 // Surface: tiles (0,13)-(39,21) — narrowed 12px each side to keep clear of tower cols 0/39
+#define DEATH_FRAME_BASE   4   // first death sprite frame index
+#define DEATH_FRAME_COUNT  3   // frames 4, 5, 6
+#define DEATH_FRAME_TICKS  8   // display ticks per death frame
+
 #define ZONE_SURFACE_X_MIN  12
 #define ZONE_SURFACE_X_MAX  (SCREEN_WIDTH - 16 - 12)  // 292: right edge stays clear of col 39
 #define ZONE_SURFACE_Y_MIN  (15 * 8) - 0              // 120: top of row 15
@@ -58,6 +62,9 @@ static const uint8_t beam_right_idx[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 1, 2
 static int16_t lander_x;
 static int16_t lander_y;
 static bool lander_active;
+static bool    lander_dying;
+static uint8_t death_frame;
+static uint8_t death_tick;
 static uint8_t launch_delay;
 static uint8_t anim_tick;
 static uint8_t frame;
@@ -221,6 +228,9 @@ void lander_reset(void)
     lander_x = LANDER_START_X;
     lander_y = LANDER_START_Y;
     lander_active = false;
+    lander_dying = false;
+    death_frame = 0;
+    death_tick = 0;
     launch_delay = 0;
     anim_tick = 0;
     frame = 0;
@@ -229,13 +239,29 @@ void lander_reset(void)
 
 bool lander_is_active(void)
 {
-    return lander_active;
+    return lander_active && !lander_dying;
 }
 
 void lander_update(bool planet_phase)
 {
     if (!planet_phase) {
-        if (lander_active || launch_delay > 0) lander_reset();
+        if (lander_active || lander_dying || launch_delay > 0) lander_reset();
+        return;
+    }
+
+    if (lander_dying) {
+        if (++death_tick >= DEATH_FRAME_TICKS) {
+            death_tick = 0;
+            if (++death_frame >= DEATH_FRAME_COUNT) {
+                // Animation complete — actually respawn.
+                lander_reset();
+                lander_active = true;
+                lander_y = LANDER_START_Y + 8;
+                write_lander_pos(lander_x, lander_y);
+            } else {
+                write_lander_frame((uint8_t)(DEATH_FRAME_BASE + death_frame));
+            }
+        }
         return;
     }
 
@@ -387,10 +413,24 @@ void lander_get_pos(int16_t *x, int16_t *y)
 
 void lander_respawn(void)
 {
-    lander_reset();
-    lander_active = true;
-    lander_y = LANDER_START_Y + 8;
-    write_lander_pos(lander_x, lander_y);
+    // Stop sounds and beam immediately but keep sprite visible for death animation.
+    sound_set_lander_motor(false);
+    sound_set_beam(false);
+    if (beam_active) {
+        if (beam_has_beastie) {
+            beasties_set_paused(beam_beastie_idx, false);
+            beam_has_beastie = false;
+        }
+        beam_erase();
+        beam_restore_palette();
+        xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
+        xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
+        beam_active = false;
+    }
+    lander_dying = true;
+    death_frame = 0;
+    death_tick = 0;
+    write_lander_frame(DEATH_FRAME_BASE);
 }
 
 bool lander_consume_docked_beasties(uint8_t *count)
