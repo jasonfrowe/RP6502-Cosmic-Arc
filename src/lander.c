@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "lander.h"
 #include "input.h"
+#include "palette.h"
 
 #define LANDER_START_X 152
 #define LANDER_START_Y (112 + 4) 
@@ -33,7 +34,20 @@
 #define BEAM_GREEN_ROW_START      20    // rows >= 20 use green tiles (near ground)
 #define BEAM_TILE_ROW_END         21    // last MOTHERSHIP_MAP row ((191-16)/8 = 21)
 #define BEAM_FRAME_SIZE          (8u * 8u * 2u)   // bytes per 8x8 sprite frame
-#define BEAM_ANIM_TICKS           4
+#define BEAM_ANIM_TICKS           6
+#define BEAM_FLICKER_TICKS        2
+#define BEAM_PALETTE_COUNT        8
+#define BEAM_FLICKER_COUNT       16
+#define BEAM_PALETTE_BLUE       105
+#define BEAM_PALETTE_GREEN      125
+
+static const uint8_t beam_blue_pal[BEAM_PALETTE_COUNT]  = { 9, 25, 41, 57, 73, 89, 105, 121 };
+static const uint8_t beam_green_pal[BEAM_PALETTE_COUNT] = { 13, 29, 45, 61, 77, 93, 109, 125 };
+
+// Flicker pattern: 1=on, 0=off. Mostly on with short semi-random off bursts.
+static const uint8_t beam_flicker[BEAM_FLICKER_COUNT] = {
+    1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1
+};
 
 // sub-tile offset → left column tile index and right column tile index (0xFF = none)
 static const uint8_t beam_left_idx[8]  = { 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -47,11 +61,36 @@ static uint8_t anim_tick;
 static uint8_t frame;
 
 static bool    beam_active;
+static bool    beam_flicker_on;
 static int16_t prev_beam_left_px;   // -1 = no beam currently drawn
 static uint8_t prev_beam_row_start;
 static bool    prev_had_right;
 static uint8_t beam_anim_frame;
 static uint8_t beam_anim_tick;
+static uint8_t beam_flicker_tick;
+static uint8_t beam_pal_phase;
+
+static void beam_palette_write(uint8_t index, uint16_t color)
+{
+    RIA.addr0 = PALETTE_ADDR + ((unsigned)index * 2u);
+    RIA.step0 = 1;
+    RIA.rw0 = color & 0xFF;
+    RIA.rw0 = color >> 8;
+}
+
+static void beam_apply_palette(bool on)
+{
+    uint16_t blue_color  = on ? tile_palette[BEAM_PALETTE_BLUE]  : 0u;
+    uint16_t green_color = on ? tile_palette[BEAM_PALETTE_GREEN] : 0u;
+    beam_palette_write(BEAM_PALETTE_BLUE,  blue_color);
+    beam_palette_write(BEAM_PALETTE_GREEN, green_color);
+}
+
+static void beam_restore_palette(void)
+{
+    beam_palette_write(BEAM_PALETTE_BLUE,  tile_palette[BEAM_PALETTE_BLUE]);
+    beam_palette_write(BEAM_PALETTE_GREEN, tile_palette[BEAM_PALETTE_GREEN]);
+}
 
 static bool lander_in_zone(int16_t x, int16_t y)
 {
@@ -139,9 +178,13 @@ void lander_reset(void)
         xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
     }
     beam_active = false;
+    beam_flicker_on = false;
     prev_beam_left_px = -1;
     beam_anim_frame = 0;
     beam_anim_tick = 0;
+    beam_flicker_tick = 0;
+    beam_pal_phase = 0;
+    beam_restore_palette();
 
     lander_x = LANDER_START_X;
     lander_y = LANDER_START_Y;
@@ -176,21 +219,23 @@ void lander_update(bool planet_phase)
             launch_delay = 0;
         }
     } else {
-        // Active movement constrained to allowed zones
-        int16_t new_x = lander_x;
-        int16_t new_y = lander_y;
-        if (is_action_pressed(0, ACTION_THRUST))         new_y -= LANDER_SPEED;
-        if (is_action_pressed(0, ACTION_REVERSE_THRUST)) new_y += LANDER_SPEED;
-        if (is_action_pressed(0, ACTION_ROTATE_LEFT))    new_x -= LANDER_SPEED;
-        if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   new_x += LANDER_SPEED;
+        // Active movement constrained to allowed zones (locked when beam is on)
+        if (!beam_active) {
+            int16_t new_x = lander_x;
+            int16_t new_y = lander_y;
+            if (is_action_pressed(0, ACTION_THRUST))         new_y -= LANDER_SPEED;
+            if (is_action_pressed(0, ACTION_REVERSE_THRUST)) new_y += LANDER_SPEED;
+            if (is_action_pressed(0, ACTION_ROTATE_LEFT))    new_x -= LANDER_SPEED;
+            if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   new_x += LANDER_SPEED;
 
-        if (lander_in_zone(new_x, new_y)) {
-            lander_x = new_x;
-            lander_y = new_y;
-        } else {
-            // Slide along boundaries by trying each axis independently
-            if (lander_in_zone(new_x, lander_y)) lander_x = new_x;
-            if (lander_in_zone(lander_x, new_y)) lander_y = new_y;
+            if (lander_in_zone(new_x, new_y)) {
+                lander_x = new_x;
+                lander_y = new_y;
+            } else {
+                // Slide along boundaries by trying each axis independently
+                if (lander_in_zone(new_x, lander_y)) lander_x = new_x;
+                if (lander_in_zone(lander_x, new_y)) lander_y = new_y;
+            }
         }
 
         // Dock when returned to the top of the launch tube
@@ -201,11 +246,22 @@ void lander_update(bool planet_phase)
 
         // Beam: hold FIRE button while on the surface to project beam to ground
         if (lander_y >= ZONE_SURFACE_Y_MIN && is_action_pressed(0, ACTION_FIRE)) {
-            beam_active = true;
+            if (!beam_active) {
+                beam_active = true;
+                beam_pal_phase = 0;
+                beam_flicker_on = true;
+                beam_apply_palette(true);
+            }
             beam_draw_tiles();
             if (++beam_anim_tick >= BEAM_ANIM_TICKS) {
                 beam_anim_tick = 0;
                 if (++beam_anim_frame >= 4u) beam_anim_frame = 0;
+            }
+            if (++beam_flicker_tick >= BEAM_FLICKER_TICKS) {
+                beam_flicker_tick = 0;
+                if (++beam_pal_phase >= BEAM_FLICKER_COUNT) beam_pal_phase = 0;
+                beam_flicker_on = (bool)beam_flicker[beam_pal_phase];
+                beam_apply_palette(beam_flicker_on);
             }
             unsigned beam_ptr = BEAM_DATA + (unsigned)beam_anim_frame * BEAM_FRAME_SIZE;
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, beam_ptr);
@@ -213,16 +269,18 @@ void lander_update(bool planet_phase)
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, (int16_t)(BEASTIE_GROUND_Y + 1));
         } else if (beam_active) {
             beam_active = false;
+            beam_flicker_on = false;
             beam_erase();
+            beam_restore_palette();
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
         }
     }
 
-    if (++anim_tick >= 4) {
+    if (++anim_tick >= 2) {
         anim_tick = 0;
         frame ^= 1u;
-        write_lander_frame(beam_active ? (frame + 2u) : frame);
+        write_lander_frame((beam_active && beam_flicker_on) ? (frame + 2u) : frame);
     }
 
     if (lander_active) {

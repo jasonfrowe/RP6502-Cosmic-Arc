@@ -6,7 +6,7 @@
 #include "mothership.h"
 
 #define MOTHERSHIP_CYCLE_COUNT   6
-#define MOTHERSHIP_TICKS         4
+#define MOTHERSHIP_TICKS         2
 #define MOTHERSHIP_LAND_Y        16
 #define MOTHERSHIP_START_Y       (-176)
 #define MOTHERSHIP_DESCENT_SPEED 1
