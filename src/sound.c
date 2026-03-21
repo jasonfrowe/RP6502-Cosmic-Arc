@@ -44,6 +44,27 @@ static const OPL_Patch klaxon_patch = {
     .feedback = 0x0E,
 };
 
+// TIA-style buzzy thruster chug (C5, on/off rapid cadence)
+static const OPL_Patch lander_motor_patch = {
+    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xFF, .m_susrel = 0x0F, .m_wave = 0x03,
+    .c_ave = 0x21, .c_ksl = 0x00, .c_atdec = 0xFF, .c_susrel = 0x0F, .c_wave = 0x00,
+    .feedback = 0x06,
+};
+
+// TIA-style electromagnetic buzz (low hum, pulsed)
+static const OPL_Patch beam_patch = {
+    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xFF, .m_susrel = 0x0F, .m_wave = 0x01,
+    .c_ave = 0x21, .c_ksl = 0x00, .c_atdec = 0xFF, .c_susrel = 0x0F, .c_wave = 0x03,
+    .feedback = 0x06,
+};
+
+// Short ascending chirp when a beastie boards the lander
+static const OPL_Patch capture_patch = {
+    .m_ave = 0x61, .m_ksl = 0x11, .m_atdec = 0xF9, .m_susrel = 0x0F, .m_wave = 0x01,
+    .c_ave = 0x61, .c_ksl = 0x00, .c_atdec = 0xF7, .c_susrel = 0x0F, .c_wave = 0x00,
+    .feedback = 0x04,
+};
+
 static uint8_t descent_tick;
 static uint8_t descent_phase;
 static uint8_t descent_delay;
@@ -57,6 +78,26 @@ static uint8_t laser_timer;
 static uint8_t destruction_timer;
 static uint8_t destruction_phase;
 static uint16_t klaxon_timer;
+
+// Lander motor (SFX_DESCENT_CH — free while mothership is landed)
+#define LANDER_MOTOR_ON_TICKS  3
+#define LANDER_MOTOR_OFF_TICKS 2
+static bool    lander_motor_requested;
+static bool    lander_motor_was_on;
+static uint8_t lander_motor_tick;
+static bool    lander_motor_phase;   // true=note on, false=note off
+
+// Beam hum (SFX_LASER_CH — free while lander is active)
+#define BEAM_RETRIGGER_TICKS 6
+static bool    beam_requested;
+static bool    beam_was_on;
+static uint8_t beam_tick;
+
+// Beastie-aboard chirp (SFX_EVENT_CH — brief, interrupts asteroid buzz)
+#define CAPTURE_NOTES      3
+#define CAPTURE_NOTE_TICKS 7
+static const uint8_t capture_notes[CAPTURE_NOTES] = { 72, 79, 84 };
+static uint8_t capture_timer;
 
 static void sfx_note_on(uint8_t channel, const OPL_Patch* patch, uint8_t note, uint8_t volume)
 {
@@ -84,6 +125,15 @@ void sound_init(void)
     destruction_timer = 0;
     destruction_phase = 0;
     klaxon_timer = 0;
+
+    lander_motor_requested = false;
+    lander_motor_was_on    = false;
+    lander_motor_tick      = 0;
+    lander_motor_phase     = false;
+    beam_requested         = false;
+    beam_was_on            = false;
+    beam_tick              = 0;
+    capture_timer          = 0;
 
     stop_channel(SFX_DESCENT_CH);
     stop_channel(SFX_LASER_CH);
@@ -241,6 +291,101 @@ static void update_asteroid_sound(bool asteroid_present)
     asteroid_tick = (uint8_t)((asteroid_tick + 1u) % ASTEROID_RETRIGGER_TICKS);
 }
 
+// ---------------------------------------------------------------------------
+// Public setters (called every frame from lander.c)
+// ---------------------------------------------------------------------------
+void sound_set_lander_motor(bool on)
+{
+    lander_motor_requested = on;
+}
+
+void sound_set_beam(bool on)
+{
+    beam_requested = on;
+}
+
+void sound_play_beastie_aboard(void)
+{
+    // Interrupt event channel with ascending chirp
+    capture_timer = (uint8_t)(CAPTURE_NOTES * CAPTURE_NOTE_TICKS);
+    sfx_note_on(SFX_EVENT_CH, &capture_patch, capture_notes[0], 100);
+}
+
+// ---------------------------------------------------------------------------
+// Per-frame update functions (called from sound_update)
+// ---------------------------------------------------------------------------
+static void update_lander_motor_sound(void)
+{
+    if (lander_motor_requested != lander_motor_was_on) {
+        lander_motor_was_on = lander_motor_requested;
+        lander_motor_tick   = 0;
+        if (lander_motor_requested) {
+            // Fire the first note immediately on activation
+            sfx_note_on(SFX_DESCENT_CH, &lander_motor_patch, 72, 100);
+            lander_motor_phase = true;
+        } else {
+            stop_channel(SFX_DESCENT_CH);
+            lander_motor_phase = false;
+            return;
+        }
+    }
+
+    if (!lander_motor_requested) return;
+
+    ++lander_motor_tick;
+    if (lander_motor_phase) {
+        if (lander_motor_tick >= LANDER_MOTOR_ON_TICKS) {
+            stop_channel(SFX_DESCENT_CH);
+            lander_motor_phase = false;
+            lander_motor_tick  = 0;
+        }
+    } else {
+        if (lander_motor_tick >= LANDER_MOTOR_OFF_TICKS) {
+            sfx_note_on(SFX_DESCENT_CH, &lander_motor_patch, 72, 100);
+            lander_motor_phase = true;
+            lander_motor_tick  = 0;
+        }
+    }
+}
+
+static void update_beam_sound(void)
+{
+    if (beam_requested != beam_was_on) {
+        if (!beam_requested) {
+            stop_channel(SFX_LASER_CH);
+        }
+        beam_was_on = beam_requested;
+        beam_tick   = 0;
+    }
+
+    if (!beam_requested) return;
+
+    if (beam_tick == 0u) {
+        sfx_note_on(SFX_LASER_CH, &beam_patch, 33, 127);
+    }
+    beam_tick = (uint8_t)((beam_tick + 1u) % BEAM_RETRIGGER_TICKS);
+}
+
+static void update_capture_sound(void)
+{
+    if (capture_timer == 0u) return;
+
+    --capture_timer;
+
+    // Trigger the next note at each step boundary
+    uint8_t step = (uint8_t)((CAPTURE_NOTES * CAPTURE_NOTE_TICKS - 1u - capture_timer)
+                              / CAPTURE_NOTE_TICKS);
+    uint8_t tick_in_step = (uint8_t)((CAPTURE_NOTES * CAPTURE_NOTE_TICKS - 1u - capture_timer)
+                                      % CAPTURE_NOTE_TICKS);
+    if (tick_in_step == 0u && step < CAPTURE_NOTES) {
+        sfx_note_on(SFX_EVENT_CH, &capture_patch, capture_notes[step], 100);
+    }
+
+    if (capture_timer == 0u) {
+        stop_channel(SFX_EVENT_CH);
+    }
+}
+
 void sound_update(bool mothership_descending, bool asteroid_present)
 {
     update_laser_sound();
@@ -253,4 +398,7 @@ void sound_update(bool mothership_descending, bool asteroid_present)
     update_klaxon_sound();
     update_descent_sound(mothership_descending);
     update_asteroid_sound(asteroid_present);
+    update_lander_motor_sound();
+    update_beam_sound();
+    update_capture_sound();
 }

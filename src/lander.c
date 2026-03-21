@@ -6,6 +6,7 @@
 #include "input.h"
 #include "palette.h"
 #include "beasties.h"
+#include "sound.h"
 
 #define LANDER_START_X 152
 #define LANDER_START_Y (112 + 4) 
@@ -244,12 +245,16 @@ void lander_update(bool planet_phase)
     } else {
         // Active movement constrained to allowed zones (locked when beam is on)
         if (!beam_active) {
+            bool any_dir;
             int16_t new_x = lander_x;
             int16_t new_y = lander_y;
             if (is_action_pressed(0, ACTION_THRUST))         new_y -= LANDER_SPEED;
             if (is_action_pressed(0, ACTION_REVERSE_THRUST)) new_y += LANDER_SPEED;
             if (is_action_pressed(0, ACTION_ROTATE_LEFT))    new_x -= LANDER_SPEED;
             if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   new_x += LANDER_SPEED;
+
+            any_dir = (new_x != lander_x || new_y != lander_y);
+            sound_set_lander_motor(any_dir);
 
             if (lander_in_zone(new_x, new_y)) {
                 lander_x = new_x;
@@ -259,12 +264,16 @@ void lander_update(bool planet_phase)
                 if (lander_in_zone(new_x, lander_y)) lander_x = new_x;
                 if (lander_in_zone(lander_x, new_y)) lander_y = new_y;
             }
+        } else {
+            sound_set_lander_motor(false);
         }
 
         // Dock when returned to the top of the launch tube
         if (lander_y <= ZONE_TUBE_Y_MIN) {
             lander_active = false;
             launch_delay = 0;
+            sound_set_lander_motor(false);
+            sound_set_beam(false);
             // Beasties aboard transfer to delivery slot — consumed once by main.c
             lander_docked_delivery = beasties_aboard;
             beasties_aboard = 0;
@@ -277,6 +286,7 @@ void lander_update(bool planet_phase)
                 beam_pal_phase = 0;
                 beam_flicker_on = true;
                 beam_apply_palette(true);
+                sound_set_beam(true);
             }
             // Every frame: try to lock onto a beastie walking under the beam
             if (!beam_has_beastie) {
@@ -309,6 +319,7 @@ void lander_update(bool planet_phase)
                             // Beastie reaches the lander — now aboard
                             ++beasties_aboard;
                             beam_has_beastie = false;
+                            sound_play_beastie_aboard();
                         }
                     }
                 }
@@ -334,6 +345,7 @@ void lander_update(bool planet_phase)
         } else if (beam_active) {
             beam_active = false;
             beam_flicker_on = false;
+            sound_set_beam(false);
             if (beam_has_beastie) {
                 beasties_set_paused(beam_beastie_idx, false);
                 beam_has_beastie = false;
