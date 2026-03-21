@@ -169,21 +169,20 @@ static void toggle_surface_phase(void)
 {
     planet_surface_phase = !planet_surface_phase;
     if (planet_surface_phase) {
-        restore_terrain_rows();
-        planet_timer = 0;
+        // Entering planet: commit nothing yet — terrain/beastie work deferred until
+        // the ship clears the screen (complete_phase_tile_work fires on departure).
         beasties_delivered = 0;
-        beasties_spawn((uint8_t)(2u - permanent_captures));
+        beasties_hide_all(); // keep them hidden until tiles swap after departure
     } else {
         // Leaving the planet: beasties that docked are now fully captured.
         permanent_captures += beasties_delivered;
         beasties_delivered = 0;
         if (permanent_captures >= 2) permanent_captures = 0;
-        set_deep_space_terrain();
     }
 
-    update_launch_tube();
     asteroid_set_planet_phase(planet_surface_phase);
     asteroid_set_spawns_paused(planet_surface_phase && game_mode == GAME_MODE_PLAYING);
+    if (mothership_is_landed()) mothership_start_departure();
 }
 
 static void hide_title_tiles(void)
@@ -563,6 +562,17 @@ int main(void)
 
         starfield_update();
         mothership_update();
+        if (mothership_consume_departed()) {
+            // Tiles swap NOW  — after the ship has cleared the screen.
+            if (planet_surface_phase) {
+                restore_terrain_rows();
+                planet_timer = 0;
+                beasties_spawn((uint8_t)(2u - permanent_captures));
+            } else {
+                set_deep_space_terrain();
+            }
+            update_launch_tube();
+        }
         if (mothership_consume_respawned_after_destruction()) {
             if (game_mode == GAME_MODE_DEMO) {
                 toggle_surface_phase();
@@ -573,8 +583,8 @@ int main(void)
             // In gameplay deep space: ship respawns in deep space, no toggle.
         }
         laser_update();
-        beasties_update(planet_surface_phase);
-        lander_update(planet_surface_phase && game_mode == GAME_MODE_PLAYING);
+        beasties_update(planet_surface_phase && mothership_is_landed());
+        lander_update(planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING);
 
         if (game_mode == GAME_MODE_PLAYING && planet_surface_phase) {
             // Accumulate beasties docked this visit; fully captured only when we leave

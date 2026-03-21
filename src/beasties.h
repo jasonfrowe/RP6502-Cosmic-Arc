@@ -5,6 +5,7 @@
 
 void beasties_init(void);
 void beasties_reset(void);
+void beasties_hide_all(void);        // hide and pause both beasties immediately
 void beasties_spawn(uint8_t count); // spawn 0-2 beasties; unspawned stay hidden
 void beasties_update(bool enabled);
 

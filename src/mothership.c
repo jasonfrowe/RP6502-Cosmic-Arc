@@ -25,6 +25,9 @@
 // Y position where the mothership tilemap puts the ship graphic at the top of screen
 #define MOTHERSHIP_APPEAR_Y             (-(MOTHERSHIP_TILE_Y0 * 8))
 #define MOTHERSHIP_APPEAR_TICKS_PER_STEP 8
+// Departure: scroll up until fully off screen, then re-enter
+#define MOTHERSHIP_DEPART_SPEED         2
+#define MOTHERSHIP_DEPART_OFFSCREEN_Y   (-((int16_t)(MOTHERSHIP_TILE_Y0 + MOTHERSHIP_TILE_H) * 8))
 
 static const uint8_t mothership_indices[MOTHERSHIP_CYCLE_COUNT] = {
     16, 32, 48, 64, 80, 96,
@@ -38,6 +41,7 @@ typedef enum {
     MOTHERSHIP_APPEARING = 0,
     MOTHERSHIP_DESCENDING,
     MOTHERSHIP_LANDED,
+    MOTHERSHIP_DEPARTING,
     MOTHERSHIP_DESTROYING,
 } MothershipState;
 
@@ -53,6 +57,7 @@ static uint16_t mothership_rng = 0x6C8Du;
 static uint8_t mothership_saved_tiles[MOTHERSHIP_TILE_COUNT];
 static bool mothership_respawned_after_destruction = false;
 static bool mothership_waiting_for_respawn = false;
+static bool mothership_departed = false;
 
 static uint16_t next_rand(void)
 {
@@ -216,6 +221,11 @@ void mothership_reset_appear(void)
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, mothership_y);
 }
 
+void mothership_start_departure(void)
+{
+    mothership_state = MOTHERSHIP_DEPARTING;
+}
+
 void mothership_start_destruction(void)
 {
     if (mothership_state == MOTHERSHIP_DESTROYING)
@@ -246,6 +256,13 @@ bool mothership_consume_respawned_after_destruction(void)
     return respawned;
 }
 
+bool mothership_consume_departed(void)
+{
+    bool d = mothership_departed;
+    mothership_departed = false;
+    return d;
+}
+
 void mothership_update(void)
 {
     uint8_t idx;
@@ -258,6 +275,17 @@ void mothership_update(void)
 
         if (++mothership_destroy_timer >= MOTHERSHIP_DESTRUCTION_FRAMES) {
             mothership_reset_appear();
+        }
+        return;
+    }
+
+    if (mothership_state == MOTHERSHIP_DEPARTING) {
+        mothership_y -= MOTHERSHIP_DEPART_SPEED;
+        xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, mothership_y);
+        if (mothership_y <= MOTHERSHIP_DEPART_OFFSCREEN_Y) {
+            // Fully off screen — signal caller, then begin the re-entry scroll
+            mothership_departed = true;
+            mothership_reset();
         }
         return;
     }
