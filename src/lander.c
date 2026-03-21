@@ -6,19 +6,19 @@
 #include "input.h"
 
 #define LANDER_START_X 152
-#define LANDER_START_Y 88
+#define LANDER_START_Y (112 + 4) 
 #define LANDER_SPEED 1
 
 // Allowed movement zones (8px tiles, 16x16 sprite top-left bounds)
 // Surface: tiles (0,13)-(39,21)
 #define ZONE_SURFACE_X_MIN  0
 #define ZONE_SURFACE_X_MAX  (SCREEN_WIDTH - 16)  // 304: right edge of col 39
-#define ZONE_SURFACE_Y_MIN  (14 * 8) - 2            // 112: top of row 14
+#define ZONE_SURFACE_Y_MIN  (15 * 8) - 0            // 112: top of row 14
 #define ZONE_SURFACE_Y_MAX  (22 * 8 - 16)        // 160: keeps sprite within row 21
 // Launch tube: tiles (19,11)-(20,12) — exactly 16px wide, one sprite wide
 #define ZONE_TUBE_X         (19 * 8)             // 152
-#define ZONE_TUBE_Y_MIN     (11 * 8)             // 88: dock/start position
-#define ZONE_TUBE_Y_MAX     (14 * 8 - 3)         // 111: bottom of row 13
+#define ZONE_TUBE_Y_MIN     (14 * 8 + 4)             // 88: dock/start position
+#define ZONE_TUBE_Y_MAX     (15 * 8 - 1)         // 111: bottom of row 13
 
 // Beam tile layout: 4px-wide beam at 8 sub-pixel offsets within an 8px tile column.
 // Blue set (main beam): tile IDs BEAM_FIRST_BLUE + index (0-10)
