@@ -210,7 +210,7 @@ void lander_update(bool planet_phase)
             unsigned beam_ptr = BEAM_DATA + (unsigned)beam_anim_frame * BEAM_FRAME_SIZE;
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, beam_ptr);
             xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, (int16_t)(lander_x + 4));
-            xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, (int16_t)(BEASTIE_GROUND_Y - 7));
+            xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, (int16_t)(BEASTIE_GROUND_Y + 1));
         } else if (beam_active) {
             beam_active = false;
             beam_erase();
@@ -222,7 +222,7 @@ void lander_update(bool planet_phase)
     if (++anim_tick >= 4) {
         anim_tick = 0;
         frame ^= 1u;
-        write_lander_frame(frame);
+        write_lander_frame(beam_active ? (frame + 2u) : frame);
     }
 
     if (lander_active) {

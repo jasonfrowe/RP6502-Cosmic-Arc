@@ -28,10 +28,10 @@
 #define BEASTIES_DATA_SIZE      0x0A00U // Size of beasties sprite (20 parts * 8x8 * 2 bytes = 2560 bytes)
 
 #define LANDER_DATA             (BEASTIES_DATA + BEASTIES_DATA_SIZE) // Address for lander sprite data
-#define LANDER_DATA_SIZE        0x0400U // Size of lander sprite data
+#define LANDER_DATA_SIZE        0x0800U // Size of lander sprite data (4 parts * 16x16 * 2 bytes = 4096 bytes)
 
 #define BEAM_DATA               (LANDER_DATA + LANDER_DATA_SIZE) // Address for beam sprite data
-#define BEAM_DATA_SIZE          0x0200U // Size of beam sprite data (4 parts * 8x8 * 2 bytes = 256 bytes)
+#define BEAM_DATA_SIZE          0x0200U // Size of beam sprite data (4 parts * 8x8 * 2 bytes = 512 bytes)
 
 #define SPRITE_DATA_END         (BEAM_DATA + BEAM_DATA_SIZE) // End address for sprite data
 
