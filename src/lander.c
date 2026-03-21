@@ -32,8 +32,8 @@
 //   8:[oooooxxx] 9:[ooooooxx] 10:[ooooooox] <- left-column overflow (offsets 5,6,7)
 #define BEAM_FIRST_BLUE          191u
 #define BEAM_FIRST_GREEN         202u
-#define BEAM_GREEN_ROW_START      21    // only the bottom row uses green tiles
-#define BEAM_TILE_ROW_END         21    // last MOTHERSHIP_MAP row ((191-16)/8 = 21)
+#define BEAM_GREEN_ROW_START      22    // only the bottom row uses green tiles
+#define BEAM_TILE_ROW_END         22    // BEASTIE_GROUND_Y=191 → screen row 22 ((191-16)/8=21.9)
 #define BEAM_FRAME_SIZE          (8u * 8u * 2u)   // bytes per 8x8 sprite frame
 #define BEAM_ANIM_TICKS           6
 #define BEAM_FLICKER_TICKS        2
