@@ -10,7 +10,7 @@
 #define SPRITE_DATA_START       0x0000U // Starting address in XRAM for sprite data
 
 #define MAIN_MAP_DATA           (SPRITE_DATA_START) // Address for main tile bitmap data
-#define MAIN_MAP_DATA_SIZE      0x2FC0 // 12224 bytes (191 tiles * 8x8 * 8bpp)
+#define MAIN_MAP_DATA_SIZE      0x3540 // 13632 bytes (213 tiles * 8x8 * 8bpp)
 
 #define MAIN_MAP_TILEMAP_DATA   (MAIN_MAP_DATA + MAIN_MAP_DATA_SIZE) // Address for Main Map tilemap data
 #define MAIN_MAP_TILEMAP_SIZE   0x04B0U // 1200 bytes (40 * 30 tile IDs)
@@ -30,7 +30,10 @@
 #define LANDER_DATA             (BEASTIES_DATA + BEASTIES_DATA_SIZE) // Address for lander sprite data
 #define LANDER_DATA_SIZE        0x0400U // Size of lander sprite data
 
-#define SPRITE_DATA_END         (LANDER_DATA + LANDER_DATA_SIZE) // End address for sprite data
+#define BEAM_DATA               (LANDER_DATA + LANDER_DATA_SIZE) // Address for beam sprite data
+#define BEAM_DATA_SIZE          0x0060U // Size of beam sprite data (3 parts * 4x4 * 2 bytes = 96 bytes)
+
+#define SPRITE_DATA_END         (BEAM_DATA + BEAM_DATA_SIZE) // End address for sprite data
 
 // Main Map configuration
 #define MAIN_MAP_WIDTH_TILES 40
@@ -56,6 +59,7 @@ extern unsigned ASTEROID_CONFIG;     // Configuration struct address for asteroi
 extern unsigned BEASTIE1_CONFIG;     // Configuration struct address for beastie sprite 1
 extern unsigned BEASTIE2_CONFIG;     // Configuration struct address for beastie sprite 2
 extern unsigned LANDER_CONFIG;      // Configuration struct address for lander sprite
+extern unsigned BEAM_CONFIG;       // Configuration struct address for beam sprite
 
 #define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
 

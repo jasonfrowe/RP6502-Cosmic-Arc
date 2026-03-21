@@ -21,6 +21,7 @@ unsigned ASTEROID_CONFIG;
 unsigned BEASTIE1_CONFIG;
 unsigned BEASTIE2_CONFIG;
 unsigned LANDER_CONFIG;
+unsigned BEAM_CONFIG;
 
 #define TITLE_X0 8
 #define TITLE_X1 32
@@ -409,9 +410,16 @@ static void init_graphics(void)
     xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, log_size, 4); // 16x16 sprites
     xram0_struct_set(LANDER_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
+    BEAM_CONFIG = LANDER_CONFIG + sizeof(vga_mode4_sprite_t);
+
+    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
+    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
+    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, BEAM_DATA);
+    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, log_size, 2); // 4x4 sprites
+    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(4, 0, LASER_CONFIG, 5, 1, 0, SPACE_HEIGHT) < 0) {
+    if (xreg_vga_mode(4, 0, LASER_CONFIG, 6, 1, 0, SPACE_HEIGHT) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
