@@ -13,6 +13,7 @@
 #include "opl.h"
 #include "lander.h"
 #include "sound.h"
+#include "defense.h"
 
 unsigned MAIN_MAP_CONFIG;
 unsigned MOTHERSHIP_CONFIG;
@@ -178,6 +179,7 @@ static void toggle_surface_phase(void)
         permanent_captures += beasties_delivered;
         beasties_delivered = 0;
         if (permanent_captures >= 2) permanent_captures = 0;
+        defense_hide();
     }
 
     asteroid_set_planet_phase(planet_surface_phase);
@@ -568,6 +570,7 @@ int main(void)
                 restore_terrain_rows();
                 planet_timer = 0;
                 beasties_spawn((uint8_t)(2u - permanent_captures));
+                defense_reset();
             } else {
                 set_deep_space_terrain();
             }
@@ -577,8 +580,10 @@ int main(void)
             if (game_mode == GAME_MODE_DEMO) {
                 // Demo: use normal toggle (departure already bypassed by destruction).
                 planet_surface_phase = !planet_surface_phase;
-                if (!planet_surface_phase) set_deep_space_terrain();
-                else restore_terrain_rows();
+                if (!planet_surface_phase) {
+                    defense_hide();
+                    set_deep_space_terrain();
+                } else restore_terrain_rows();
                 update_launch_tube();
                 asteroid_set_planet_phase(planet_surface_phase);
                 asteroid_set_spawns_paused(false);
@@ -589,6 +594,7 @@ int main(void)
                 beasties_delivered = 0;
                 if (permanent_captures >= 2) permanent_captures = 0;
                 planet_surface_phase = false;
+                defense_hide();
                 set_deep_space_terrain();
                 update_launch_tube();
                 beasties_hide_all();
@@ -600,6 +606,10 @@ int main(void)
         laser_update();
         beasties_update(planet_surface_phase && mothership_is_landed());
         lander_update(planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING);
+        if (planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING) {
+            if (defense_update())
+                lander_reset();
+        }
 
         if (game_mode == GAME_MODE_PLAYING && planet_surface_phase) {
             // Accumulate beasties docked this visit; fully captured only when we leave

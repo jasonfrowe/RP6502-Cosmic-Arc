@@ -13,11 +13,11 @@
 #define LANDER_SPEED 1
 
 // Allowed movement zones (8px tiles, 16x16 sprite top-left bounds)
-// Surface: tiles (0,13)-(39,21)
-#define ZONE_SURFACE_X_MIN  0
-#define ZONE_SURFACE_X_MAX  (SCREEN_WIDTH - 16)  // 304: right edge of col 39
+// Surface: tiles (0,13)-(39,21) — narrowed 12px each side to keep clear of tower cols 0/39
+#define ZONE_SURFACE_X_MIN  12
+#define ZONE_SURFACE_X_MAX  (SCREEN_WIDTH - 16 - 12)  // 292: right edge stays clear of col 39
 #define ZONE_SURFACE_Y_MIN  (15 * 8) - 0            // 112: top of row 14
-#define ZONE_SURFACE_Y_MAX  (22 * 8 - 16)        // 160: keeps sprite within row 21
+#define ZONE_SURFACE_Y_MAX  (22 * 8 - 8)        // 160: keeps sprite within row 21
 // Launch tube: tiles (19,11)-(20,12) — exactly 16px wide, one sprite wide
 #define ZONE_TUBE_X         (19 * 8)             // 152
 #define ZONE_TUBE_Y_MIN     (14 * 8 + 4)             // 88: dock/start position
@@ -75,6 +75,7 @@ static bool    beam_has_beastie;
 static uint8_t beam_beastie_idx;
 static int16_t beam_beastie_y;
 static uint8_t beasties_aboard;       // beamed up but not yet docked
+static uint8_t aboard_indices[2];     // beastie sprite index for each aboard slot
 static uint8_t lander_docked_delivery; // set on dock, consumed once by main.c
 
 static void beam_palette_write(uint8_t index, uint16_t color)
@@ -201,6 +202,11 @@ void lander_reset(void)
     beam_active = false;
     beam_flicker_on = false;
     beam_has_beastie = false;
+    {
+        uint8_t i;
+        for (i = 0; i < beasties_aboard; ++i)
+            beasties_set_paused(aboard_indices[i], false);
+    }
     beasties_aboard = 0;
     lander_docked_delivery = 0;
     prev_beam_left_px = -1;
@@ -317,6 +323,7 @@ void lander_update(bool planet_phase)
                         beam_beastie_y -= 8;
                         if (beam_beastie_y <= lander_y + 8) {
                             // Beastie reaches the lander — now aboard
+                            aboard_indices[beasties_aboard] = beam_beastie_idx;
                             ++beasties_aboard;
                             beam_has_beastie = false;
                             sound_play_beastie_aboard();
@@ -368,6 +375,12 @@ void lander_update(bool planet_phase)
     } else {
         write_lander_pos(-32, -32);
     }
+}
+
+void lander_get_pos(int16_t *x, int16_t *y)
+{
+    *x = lander_x;
+    *y = lander_y;
 }
 
 bool lander_consume_docked_beasties(uint8_t *count)

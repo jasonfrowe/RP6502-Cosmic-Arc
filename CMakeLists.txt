@@ -37,6 +37,7 @@ target_sources(CosmicArc PRIVATE
     src/sound.c
     src/instruments.c
     src/lander.c
+    src/defense.c
 )
 
 target_compile_definitions(CosmicArc PRIVATE USE_NATIVE_OPL2)
