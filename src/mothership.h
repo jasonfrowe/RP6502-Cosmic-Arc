@@ -13,5 +13,6 @@ bool mothership_is_landed(void);
 bool mothership_consume_respawned_after_destruction(void);
 bool mothership_consume_departed(void);
 void mothership_update(void);
+void mothership_set_sfx_enabled(bool enabled);
 
 #endif // MOTHERSHIP_H

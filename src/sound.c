@@ -99,6 +99,23 @@ static uint8_t beam_tick;
 static const uint8_t capture_notes[CAPTURE_NOTES] = { 72, 79, 84 };
 static uint8_t capture_timer;
 
+// Appear: rapid ascending retrigger (mirrors descent style, ascending pitch)
+// Runs for 8 palette steps × 8 ticks = 64 ticks — matches appearance animation.
+#define APPEAR_DURATION_TICKS  64
+#define APPEAR_RETRIGGER_TICKS  4
+static uint8_t appear_timer;
+static uint8_t appear_tick;
+static uint8_t appear_phase;
+
+// Depart: descending retrigger identical to live descent sound, time-limited.
+#define DEPART_DURATION_TICKS  40
+#define DEPART_RETRIGGER_TICKS  6
+static uint8_t depart_timer;
+static uint8_t depart_tick;
+static uint8_t depart_phase;
+
+static bool descent_skip_delay;
+
 static void sfx_note_on(uint8_t channel, const OPL_Patch* patch, uint8_t note, uint8_t volume)
 {
     OPL_NoteOff(channel);
@@ -134,6 +151,13 @@ void sound_init(void)
     beam_was_on            = false;
     beam_tick              = 0;
     capture_timer          = 0;
+    appear_timer           = 0;
+    appear_tick            = 0;
+    appear_phase           = 0;
+    depart_timer           = 0;
+    depart_tick            = 0;
+    depart_phase           = 0;
+    descent_skip_delay     = false;
 
     stop_channel(SFX_DESCENT_CH);
     stop_channel(SFX_LASER_CH);
@@ -249,7 +273,12 @@ static void update_descent_sound(bool mothership_descending)
         descent_enabled = true;
         descent_tick = 0;
         descent_phase = 0;
-        descent_delay = DESCENT_START_DELAY_TICKS;
+        if (descent_skip_delay) {
+            descent_delay = 0;
+            descent_skip_delay = false;
+        } else {
+            descent_delay = DESCENT_START_DELAY_TICKS;
+        }
     }
 
     if (descent_delay > 0u) {
@@ -302,6 +331,30 @@ void sound_set_lander_motor(bool on)
 void sound_set_beam(bool on)
 {
     beam_requested = on;
+}
+
+void sound_play_mothership_appear(void)
+{
+    appear_timer = APPEAR_DURATION_TICKS;
+    appear_tick  = 0;
+    appear_phase = 0;
+    depart_timer = 0;
+    // Fire first note immediately.
+    sfx_note_on(SFX_EVENT_CH, &descent_patch, (uint8_t)(55u + (appear_phase & 0x07u)), 127);
+}
+
+void sound_play_mothership_depart(void)
+{
+    depart_timer = DEPART_DURATION_TICKS;
+    depart_tick  = 0;
+    depart_phase = 0;
+    appear_timer = 0;
+    sfx_note_on(SFX_EVENT_CH, &descent_patch, (uint8_t)(67u - (depart_phase & 0x07u)), 127);
+}
+
+void sound_skip_descent_delay(void)
+{
+    descent_skip_delay = true;
 }
 
 void sound_play_beastie_aboard(void)
@@ -366,6 +419,32 @@ static void update_beam_sound(void)
     beam_tick = (uint8_t)((beam_tick + 1u) % BEAM_RETRIGGER_TICKS);
 }
 
+static void update_appear_sound(void)
+{
+    if (appear_timer == 0u) return;
+    if (appear_tick == 0u) {
+        sfx_note_on(SFX_EVENT_CH, &descent_patch,
+                    (uint8_t)(55u + (appear_phase & 0x07u)), 127);
+        appear_phase = (uint8_t)((appear_phase + 1u) & 0x0Fu);
+    }
+    appear_tick = (uint8_t)((appear_tick + 1u) % APPEAR_RETRIGGER_TICKS);
+    if (--appear_timer == 0u)
+        stop_channel(SFX_EVENT_CH);
+}
+
+static void update_depart_sound(void)
+{
+    if (depart_timer == 0u) return;
+    if (depart_tick == 0u) {
+        sfx_note_on(SFX_EVENT_CH, &descent_patch,
+                    (uint8_t)(67u - (depart_phase & 0x07u)), 127);
+        depart_phase = (uint8_t)((depart_phase + 1u) & 0x0Fu);
+    }
+    depart_tick = (uint8_t)((depart_tick + 1u) % DEPART_RETRIGGER_TICKS);
+    if (--depart_timer == 0u)
+        stop_channel(SFX_EVENT_CH);
+}
+
 static void update_capture_sound(void)
 {
     if (capture_timer == 0u) return;
@@ -396,6 +475,8 @@ void sound_update(bool mothership_descending, bool asteroid_present)
     }
 
     update_klaxon_sound();
+    update_appear_sound();
+    update_depart_sound();
     update_descent_sound(mothership_descending);
     update_asteroid_sound(asteroid_present);
     update_lander_motor_sound();

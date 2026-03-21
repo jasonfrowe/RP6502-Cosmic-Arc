@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "palette.h"
 #include "mothership.h"
+#include "sound.h"
 
 #define MOTHERSHIP_CYCLE_COUNT   6
 #define MOTHERSHIP_TICKS         2
@@ -58,6 +59,8 @@ static uint8_t mothership_saved_tiles[MOTHERSHIP_TILE_COUNT];
 static bool mothership_respawned_after_destruction = false;
 static bool mothership_waiting_for_respawn = false;
 static bool mothership_departed = false;
+
+static bool mothership_sfx_enabled = false;
 
 static uint16_t next_rand(void)
 {
@@ -219,11 +222,15 @@ void mothership_reset_appear(void)
     }
     apply_mothership_palette();
     xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, mothership_y);
+    if (mothership_sfx_enabled)
+        sound_play_mothership_appear();
 }
 
 void mothership_start_departure(void)
 {
     mothership_state = MOTHERSHIP_DEPARTING;
+    if (mothership_sfx_enabled)
+        sound_play_mothership_depart();
 }
 
 void mothership_start_destruction(void)
@@ -237,6 +244,11 @@ void mothership_start_destruction(void)
     mothership_waiting_for_respawn = true;
     apply_destruction_transparent_tiles();
     apply_destruction_palette();
+}
+
+void mothership_set_sfx_enabled(bool enabled)
+{
+    mothership_sfx_enabled = enabled;
 }
 
 bool mothership_is_descending(void)
@@ -300,6 +312,8 @@ void mothership_update(void)
             }
         } else {
             mothership_state = MOTHERSHIP_DESCENDING;
+            if (mothership_sfx_enabled)
+                sound_skip_descent_delay();
         }
     }
 

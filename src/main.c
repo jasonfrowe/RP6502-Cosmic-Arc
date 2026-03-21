@@ -253,6 +253,7 @@ static void start_demo_mode(void)
     laser_init();
     beasties_reset();
     mothership_reset();
+    mothership_set_sfx_enabled(false);
     set_deep_space_terrain();
     update_launch_tube();
     asteroid_set_planet_phase(false);
@@ -291,6 +292,7 @@ static void start_gameplay_mode(void)
     laser_init();
     beasties_reset();
     mothership_reset_appear();
+    mothership_set_sfx_enabled(true);
     mothership_consume_respawned_after_destruction(); // discard any stale demo respawn
     score_init();
     set_deep_space_terrain();
