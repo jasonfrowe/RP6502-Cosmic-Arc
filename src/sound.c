@@ -51,11 +51,11 @@ static const OPL_Patch lander_motor_patch = {
     .feedback = 0x06,
 };
 
-// TIA-style electromagnetic buzz (low hum, pulsed)
+// Smooth tonal beam hum — sine waves, low feedback
 static const OPL_Patch beam_patch = {
-    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xFF, .m_susrel = 0x0F, .m_wave = 0x01,
-    .c_ave = 0x21, .c_ksl = 0x00, .c_atdec = 0xFF, .c_susrel = 0x0F, .c_wave = 0x03,
-    .feedback = 0x06,
+    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xFF, .m_susrel = 0x0F, .m_wave = 0x00,
+    .c_ave = 0x21, .c_ksl = 0x00, .c_atdec = 0xFF, .c_susrel = 0x0F, .c_wave = 0x00,
+    .feedback = 0x02,
 };
 
 // Short ascending chirp when a beastie boards the lander
@@ -88,7 +88,7 @@ static uint8_t lander_motor_tick;
 static bool    lander_motor_phase;   // true=note on, false=note off
 
 // Beam hum (SFX_LASER_CH — free while lander is active)
-#define BEAM_RETRIGGER_TICKS 6
+#define BEAM_RETRIGGER_TICKS 18
 static bool    beam_requested;
 static bool    beam_was_on;
 static uint8_t beam_tick;
@@ -361,7 +361,7 @@ static void update_beam_sound(void)
     if (!beam_requested) return;
 
     if (beam_tick == 0u) {
-        sfx_note_on(SFX_LASER_CH, &beam_patch, 33, 127);
+        sfx_note_on(SFX_LASER_CH, &beam_patch, 33, 108);
     }
     beam_tick = (uint8_t)((beam_tick + 1u) % BEAM_RETRIGGER_TICKS);
 }
