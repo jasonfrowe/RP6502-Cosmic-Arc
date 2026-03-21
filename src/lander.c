@@ -431,6 +431,7 @@ void lander_respawn(void)
     death_frame = 0;
     death_tick = 0;
     write_lander_frame(DEATH_FRAME_BASE);
+    sound_play_lander_death();
 }
 
 bool lander_consume_docked_beasties(uint8_t *count)

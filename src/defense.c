@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "defense.h"
 #include "lander.h"
+#include "sound.h"
 
 // Tower top rises from the bottom of row 22 to the top of row 18.
 // As the tower sinks, rows above the current top get cleared to BG_TILE.
@@ -191,6 +192,7 @@ bool defense_update(void)
             dtile(col, pulse_row, pulse_tile);
         pulse_timer    = PULSE_DURATION;
         pulse_cooldown = PULSE_PERIOD;
+        sound_play_defense_pulse();
     }
 
     return hit;

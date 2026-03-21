@@ -65,6 +65,20 @@ static const OPL_Patch capture_patch = {
     .feedback = 0x04,
 };
 
+
+// Quick descending pitch sweep for lander death — buzzy, 2600-inspired
+static const OPL_Patch lander_death_patch = {
+    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xF3, .m_susrel = 0x00, .m_wave = 0x03,
+    .c_ave = 0x01, .c_ksl = 0x00, .c_atdec = 0xE2, .c_susrel = 0x00, .c_wave = 0x03,
+    .feedback = 0x06,
+};
+
+#define LANDER_DEATH_NOTES      6
+#define LANDER_DEATH_NOTE_TICKS 4   // total ~24 ticks (~400 ms)
+static const uint8_t lander_death_notes[LANDER_DEATH_NOTES] = { 60, 55, 50, 45, 40, 36 };
+static uint8_t lander_death_timer;
+static uint8_t lander_death_tick;
+
 static uint8_t descent_tick;
 static uint8_t descent_phase;
 static uint8_t descent_delay;
@@ -158,6 +172,8 @@ void sound_init(void)
     depart_tick            = 0;
     depart_phase           = 0;
     descent_skip_delay     = false;
+    lander_death_timer     = 0;
+    lander_death_tick      = 0;
 
     stop_channel(SFX_DESCENT_CH);
     stop_channel(SFX_LASER_CH);
@@ -352,6 +368,19 @@ void sound_play_mothership_depart(void)
     sfx_note_on(SFX_EVENT_CH, &descent_patch, (uint8_t)(67u - (depart_phase & 0x07u)), 127);
 }
 
+void sound_play_defense_pulse(void)
+{
+    // Use drum_snare at a high pitch — proven self-stopping envelope
+    sfx_note_on(SFX_LASER_CH, &drum_snare, 84, 127);
+}
+
+void sound_play_lander_death(void)
+{
+    lander_death_timer = (uint8_t)(LANDER_DEATH_NOTES * LANDER_DEATH_NOTE_TICKS);
+    lander_death_tick  = 0;
+    sfx_note_on(SFX_DESCENT_CH, &lander_death_patch, lander_death_notes[0], 127);
+}
+
 void sound_skip_descent_delay(void)
 {
     descent_skip_delay = true;
@@ -445,6 +474,20 @@ static void update_depart_sound(void)
         stop_channel(SFX_EVENT_CH);
 }
 
+static void update_lander_death_sound(void)
+{
+    if (lander_death_timer == 0u) return;
+    if (lander_death_tick == 0u) {
+        uint8_t step = (uint8_t)((LANDER_DEATH_NOTES * LANDER_DEATH_NOTE_TICKS - lander_death_timer)
+                                  / LANDER_DEATH_NOTE_TICKS);
+        if (step < LANDER_DEATH_NOTES)
+            sfx_note_on(SFX_DESCENT_CH, &lander_death_patch, lander_death_notes[step], 127);
+    }
+    lander_death_tick = (uint8_t)((lander_death_tick + 1u) % LANDER_DEATH_NOTE_TICKS);
+    if (--lander_death_timer == 0u)
+        stop_channel(SFX_DESCENT_CH);
+}
+
 static void update_capture_sound(void)
 {
     if (capture_timer == 0u) return;
@@ -477,6 +520,7 @@ void sound_update(bool mothership_descending, bool asteroid_present)
     update_klaxon_sound();
     update_appear_sound();
     update_depart_sound();
+    update_lander_death_sound();
     update_descent_sound(mothership_descending);
     update_asteroid_sound(asteroid_present);
     update_lander_motor_sound();
