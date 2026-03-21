@@ -73,7 +73,8 @@ static uint8_t beam_pal_phase;
 static bool    beam_has_beastie;
 static uint8_t beam_beastie_idx;
 static int16_t beam_beastie_y;
-static bool    beastie_captured;
+static uint8_t beasties_aboard;       // beamed up but not yet docked
+static uint8_t lander_docked_delivery; // set on dock, consumed once by main.c
 
 static void beam_palette_write(uint8_t index, uint16_t color)
 {
@@ -199,7 +200,8 @@ void lander_reset(void)
     beam_active = false;
     beam_flicker_on = false;
     beam_has_beastie = false;
-    beastie_captured = false;
+    beasties_aboard = 0;
+    lander_docked_delivery = 0;
     prev_beam_left_px = -1;
     beam_anim_frame = 0;
     beam_anim_tick = 0;
@@ -263,6 +265,9 @@ void lander_update(bool planet_phase)
         if (lander_y <= ZONE_TUBE_Y_MIN) {
             lander_active = false;
             launch_delay = 0;
+            // Beasties aboard transfer to delivery slot — consumed once by main.c
+            lander_docked_delivery = beasties_aboard;
+            beasties_aboard = 0;
         }
 
         // Beam: hold FIRE button while on the surface to project beam to ground
@@ -301,8 +306,8 @@ void lander_update(bool planet_phase)
                     if (beam_has_beastie) {
                         beam_beastie_y -= 8;
                         if (beam_beastie_y <= lander_y + 8) {
-                            // Beastie reaches the lander — captured!
-                            beastie_captured = true;
+                            // Beastie reaches the lander — now aboard
+                            ++beasties_aboard;
                             beam_has_beastie = false;
                         }
                     }
@@ -353,9 +358,10 @@ void lander_update(bool planet_phase)
     }
 }
 
-bool lander_consume_beastie_captured(void)
+bool lander_consume_docked_beasties(uint8_t *count)
 {
-    if (!beastie_captured) return false;
-    beastie_captured = false;
+    if (lander_docked_delivery == 0) return false;
+    *count = lander_docked_delivery;
+    lander_docked_delivery = 0;
     return true;
 }

@@ -5,6 +5,7 @@
 
 void beasties_init(void);
 void beasties_reset(void);
+void beasties_spawn(uint8_t count); // spawn 0-2 beasties; unspawned stay hidden
 void beasties_update(bool enabled);
 
 // Returns x of beastie idx (0=A, 1=B), or -1 if paused/captured.

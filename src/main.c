@@ -64,6 +64,8 @@ static uint16_t planet_timer = 0;
 static bool game_music_started = false;
 static uint8_t space_kills = 0;
 static bool laser_fire_held = false;
+static uint8_t permanent_captures = 0;  // beasties captured from previous visits this cycle
+static uint8_t beasties_delivered = 0;  // docked this visit, committed to permanent on departure
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -169,7 +171,13 @@ static void toggle_surface_phase(void)
     if (planet_surface_phase) {
         restore_terrain_rows();
         planet_timer = 0;
+        beasties_delivered = 0;
+        beasties_spawn((uint8_t)(2u - permanent_captures));
     } else {
+        // Leaving the planet: beasties that docked are now fully captured.
+        permanent_captures += beasties_delivered;
+        beasties_delivered = 0;
+        if (permanent_captures >= 2) permanent_captures = 0;
         set_deep_space_terrain();
     }
 
@@ -248,6 +256,8 @@ static void start_demo_mode(void)
     update_launch_tube();
     asteroid_set_planet_phase(false);
     asteroid_set_spawns_paused(false);
+    permanent_captures = 0;
+    beasties_delivered = 0;
 
     opl_silence_all();
     sound_init();
@@ -263,6 +273,8 @@ static void start_gameplay_mode(void)
     planet_surface_phase = false;
     space_kills = 0;
     laser_fire_held = false;
+    permanent_captures = 0;
+    beasties_delivered = 0;
     draw_shield_bar();
     fire_start_armed = false;
 
@@ -564,6 +576,20 @@ int main(void)
         beasties_update(planet_surface_phase);
         lander_update(planet_surface_phase && game_mode == GAME_MODE_PLAYING);
 
+        if (game_mode == GAME_MODE_PLAYING && planet_surface_phase) {
+            // Accumulate beasties docked this visit; fully captured only when we leave
+            uint8_t docked;
+            if (lander_consume_docked_beasties(&docked))
+                beasties_delivered += docked;
+
+            // Return to space when enough are docked and alarm hasn't fired
+            if ((uint8_t)(beasties_delivered + permanent_captures) >= 2u
+                    && planet_timer < 12 * 60) {
+                lander_reset();
+                toggle_surface_phase();
+            }
+        }
+
         if (mothership_is_landed()) {
             AsteroidResult result = asteroid_update();
             if (result == ASTEROID_LASER_HIT) {
@@ -595,6 +621,7 @@ int main(void)
                 mothership_start_destruction();
                 asteroid_reset();
                 laser_init();
+                beasties_delivered = 0; // beasties aboard are lost with the ship
             }
         }
 

@@ -119,6 +119,19 @@ void beasties_update(bool enabled)
     update_one(&beastie_b, BEASTIE2_CONFIG, enabled);
 }
 
+// Spawn 'count' beasties (0-2). Unspawned beasties stay hidden/paused.
+void beasties_spawn(uint8_t count)
+{
+    beastie_a.paused = true;
+    beastie_b.paused = true;
+    hide_beastie(BEASTIE1_CONFIG);
+    hide_beastie(BEASTIE2_CONFIG);
+    beastie_a.visible = false;
+    beastie_b.visible = false;
+    if (count >= 1) reset_one(&beastie_a, 48,  1, 0);
+    if (count >= 2) reset_one(&beastie_b, 248, -1, 2);
+}
+
 // Returns x of beastie 0=A or 1=B, or -1 if paused/captured.
 int16_t beasties_get_x(uint8_t idx)
 {

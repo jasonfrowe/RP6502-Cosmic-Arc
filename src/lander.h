@@ -7,7 +7,8 @@ void lander_init(void);
 void lander_reset(void);
 void lander_update(bool planet_phase);
 bool lander_is_active(void);
-// Returns true once after a beastie has been successfully captured.
-bool lander_consume_beastie_captured(void);
+// Returns true once after the lander docks carrying beasties.
+// *count receives the number of beasties fully delivered to the mothership.
+bool lander_consume_docked_beasties(uint8_t *count);
 
 #endif // LANDER_H
