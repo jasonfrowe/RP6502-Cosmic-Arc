@@ -415,7 +415,7 @@ static void init_graphics(void)
     xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, x_pos_px, -32);
     xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, y_pos_px, -32);
     xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, BEAM_DATA);
-    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, log_size, 2); // 4x4 sprites
+    xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, log_size, 3); // 8x8 sprites
     xram0_struct_set(BEAM_CONFIG, vga_mode4_sprite_t, has_opacity_metadata, false);
 
     // Mode 4 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END

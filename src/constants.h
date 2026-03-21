@@ -31,7 +31,7 @@
 #define LANDER_DATA_SIZE        0x0400U // Size of lander sprite data
 
 #define BEAM_DATA               (LANDER_DATA + LANDER_DATA_SIZE) // Address for beam sprite data
-#define BEAM_DATA_SIZE          0x0060U // Size of beam sprite data (3 parts * 4x4 * 2 bytes = 96 bytes)
+#define BEAM_DATA_SIZE          0x0200U // Size of beam sprite data (4 parts * 8x8 * 2 bytes = 256 bytes)
 
 #define SPRITE_DATA_END         (BEAM_DATA + BEAM_DATA_SIZE) // End address for sprite data
 
@@ -62,6 +62,10 @@ extern unsigned LANDER_CONFIG;      // Configuration struct address for lander s
 extern unsigned BEAM_CONFIG;       // Configuration struct address for beam sprite
 
 #define LASER_SPRITE_LOG_SIZE 5 // log2 of sprite size in pixels (32x32)
+
+// Surface entity ground position
+#define BEASTIE_GROUND_Y  191
+#define MOTHERSHIP_LAND_Y  16   // MOTHERSHIP_MAP y_pos_px when mothership is landed
 
 // Mothership center on screen
 #define MOTHERSHIP_X     160
