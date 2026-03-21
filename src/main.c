@@ -289,7 +289,7 @@ static void start_gameplay_mode(void)
     asteroid_reset();
     laser_init();
     beasties_reset();
-    mothership_reset();
+    mothership_reset_appear();
     mothership_consume_respawned_after_destruction(); // discard any stale demo respawn
     score_init();
     set_deep_space_terrain();
