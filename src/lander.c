@@ -244,6 +244,11 @@ bool lander_is_active(void)
     return lander_active && !lander_dying;
 }
 
+void lander_place(int16_t x, int16_t y)
+{
+    write_lander_pos(x, y);
+}
+
 void lander_update(bool planet_phase)
 {
     if (!planet_phase) {

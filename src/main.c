@@ -307,6 +307,18 @@ static uint8_t  gameover_anim_step;  // current step within build phase
 static bool     gameover_exit_armed; // true once a button was pressed (debounce)
 static uint16_t gameover_colors[GAMEOVER_ANIM_FRAMES][GAMEOVER_INDICES_PER_FRAME];
 
+// Lander escape sub-state (runs during stages 1+)
+#define GAMEOVER_ESCAPE_START_X   152  // pixel x for top-left of 16px sprite at screen centre
+#define GAMEOVER_ESCAPE_START_Y   112  // pixel y
+#define GAMEOVER_ESCAPE_ZIGZAG_PERIOD 14  // frames per horizontal direction flip
+#define GAMEOVER_ESCAPE_MOVE_TICKS     2   // advance position every N frames
+static bool    gameover_escape_active;
+static int16_t gameover_escape_x;
+static int16_t gameover_escape_y;
+static int8_t  gameover_escape_zigzag_dir;  // +1 or -1
+static uint8_t gameover_escape_zigzag_tick;
+static uint8_t gameover_escape_move_tick;
+
 static void palette_write_go(uint8_t index, uint16_t color)
 {
     RIA.addr0 = PALETTE_ADDR + ((unsigned)index * 2u);
@@ -457,12 +469,15 @@ static void start_game_over_sequence(void)
     gameover_anim_tick  = 0;
     gameover_anim_step  = 0;
     gameover_exit_armed = false;
+    gameover_escape_active   = false;
+    gameover_escape_move_tick = 0;
     music_enabled       = false;
     starfield_freeze();
     sound_play_destruction();
     mothership_start_destruction();
     asteroid_reset();
     laser_init();
+    lander_reset();
     beasties_hide_all();
     defense_hide();
 }
@@ -761,12 +776,47 @@ int main(void)
                     gameover_write_text_tiles();
                     gameover_palette_blackout();
                     gameover_init_colors();
+                    // Start lander escape from screen centre
+                    gameover_escape_x          = GAMEOVER_ESCAPE_START_X;
+                    gameover_escape_y          = GAMEOVER_ESCAPE_START_Y;
+                    gameover_escape_zigzag_dir  = 1;
+                    gameover_escape_zigzag_tick = 0;
+                    gameover_escape_move_tick   = 0;
+                    gameover_escape_active      = true;
+                    xram0_struct_set(MOTHERSHIP_CONFIG, vga_mode2_config_t, y_pos_px, 16);
+                    lander_place(gameover_escape_x, gameover_escape_y);
+                    sound_set_lander_motor(true);
                     gameover_stage      = 1;
                     gameover_anim_step  = 0;
                     gameover_anim_tick  = 0;
                     gameover_timer      = 0;
                 }
             } else {
+                // Drive lander escape animation
+                if (gameover_escape_active) {
+                    // Advance position every GAMEOVER_ESCAPE_MOVE_TICKS frames
+                    if (++gameover_escape_move_tick >= GAMEOVER_ESCAPE_MOVE_TICKS) {
+                        gameover_escape_move_tick = 0;
+                        gameover_escape_y -= 2;
+                        gameover_escape_x += (int16_t)(gameover_escape_zigzag_dir * 3 + 1);
+                        if (++gameover_escape_zigzag_tick >= GAMEOVER_ESCAPE_ZIGZAG_PERIOD) {
+                            gameover_escape_zigzag_tick = 0;
+                            gameover_escape_zigzag_dir  = (int8_t)(-gameover_escape_zigzag_dir);
+                        }
+                        if (gameover_escape_y < -16 ||
+                            gameover_escape_x < -16 ||
+                            gameover_escape_x > 320) {
+                            // Off-screen — hide sprite and silence motor
+                            lander_place(-32, -32);
+                            sound_set_lander_motor(false);
+                            gameover_escape_active = false;
+                        } else {
+                            lander_place(gameover_escape_x, gameover_escape_y);
+                        }
+                    }
+                    sound_update(false, false);
+                }
+
                 if (++gameover_anim_tick >= GAMEOVER_ANIM_TICKS) {
                     gameover_anim_tick = 0;
                     if (gameover_stage == 1) {
