@@ -59,6 +59,15 @@ static void dtile(uint8_t x, uint8_t y, uint8_t tile)
     RIA.rw0 = tile;
 }
 
+// Pulse tiles go on the MOTHERSHIP_CONFIG layer so clearing to 0 = transparent,
+// leaving the star tiles on the main map layer untouched underneath.
+static void ptile(uint8_t x, uint8_t y, uint8_t tile)
+{
+    RIA.addr0 = MOTHERSHIP_MAP_TILEMAP_DATA + (unsigned)y * MAIN_MAP_WIDTH_TILES + x;
+    RIA.step0 = 1;
+    RIA.rw0 = tile;
+}
+
 static uint8_t get_top_row(void)
 {
     return (uint8_t)(TOWER_ROW0 + tower_phase / TOWER_SUBPIXELS);
@@ -149,10 +158,11 @@ void defense_hide(void)
         dtile(GUN_COL_L,   row, BG_TILE);
         dtile(GUN_COL_R,   row, BG_TILE);
     }
-    // Clear the center of any active pulse sweep.
+    // Clear the center of any active pulse sweep (MOTHERSHIP layer, tile 0 = transparent).
+    // MOTHERSHIP layer y_pos_px=MOTHERSHIP_LAND_Y when landed, so subtract the offset.
     if (pulse_timer > 0) {
-        for (col = GUN_COL_L + 1u; col < GUN_COL_R; ++col)
-            dtile(col, pulse_row, BG_TILE);
+        for (col = GUN_COL_L; col <= GUN_COL_R; ++col)
+            ptile(col, pulse_row - MOTHERSHIP_LAND_Y / 8u, 0);
     }
 }
 
@@ -201,19 +211,20 @@ bool defense_update(void)
             }
             dtile(GUN_COL_L, top_row, gun_l_tiles[sp]);
             dtile(GUN_COL_R, top_row, gun_r_tiles[sp]);
-            // Clear the center columns of the pulse row.
-            for (col = GUN_COL_L + 1u; col < GUN_COL_R; ++col)
-                dtile(col, pulse_row, BG_TILE);
+            // Clear pulse row on MOTHERSHIP layer (tile 0 = transparent).
+            for (col = GUN_COL_L; col <= GUN_COL_R; ++col)
+                ptile(col, pulse_row - MOTHERSHIP_LAND_Y / 8u, 0);
         }
     } else if (pulse_cooldown > 0) {
         --pulse_cooldown;
     } else {
         uint8_t col;
-        // Fire: freeze pulse at current gun row and sub-pixel tile.
+        // Fire: draw pulse on MOTHERSHIP layer so clearing = transparent (stars preserved).
+        // Subtract MOTHERSHIP layer y offset so pulse aligns with gun on MAIN_MAP layer.
         pulse_row  = get_top_row();
         pulse_tile = (uint8_t)(PULSE_TILE_BASE + get_subpixel());
         for (col = GUN_COL_L; col <= GUN_COL_R; ++col)
-            dtile(col, pulse_row, pulse_tile);
+            ptile(col, pulse_row - MOTHERSHIP_LAND_Y / 8u, pulse_tile);
         pulse_timer    = PULSE_DURATION;
         pulse_cooldown = pulse_period;
         sound_play_defense_pulse();

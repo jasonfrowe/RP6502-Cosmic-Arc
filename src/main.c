@@ -69,6 +69,7 @@ static bool laser_fire_held = false;
 static uint8_t permanent_captures = 0;  // beasties captured from previous visits this cycle
 static uint8_t beasties_delivered = 0;  // docked this visit, committed to permanent on departure
 static uint8_t game_level = 0;          // increases with each full capture cycle
+static bool full_rescue_bonus = false;  // true: both beasties rescued same trip before klaxon
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -168,6 +169,8 @@ static void restore_terrain_rows(void)
     }
 }
 
+static void draw_shield_bar(void);
+
 static void toggle_surface_phase(void)
 {
     planet_surface_phase = !planet_surface_phase;
@@ -178,10 +181,22 @@ static void toggle_surface_phase(void)
         beasties_hide_all(); // keep them hidden until tiles swap after departure
     } else {
         // Leaving the planet: beasties that docked are now fully captured.
+        // Full energy refill only if both were rescued this trip before the klaxon.
         permanent_captures += beasties_delivered;
+        if (game_mode == GAME_MODE_PLAYING) {
+            if (full_rescue_bonus) {
+                shield_points = SHIELD_START;
+            } else {
+                shield_points += (int16_t)(beasties_delivered * SHIELD_BEASTIE_REWARD);
+                if (shield_points > SHIELD_START) shield_points = SHIELD_START;
+            }
+            draw_shield_bar();
+        }
+        full_rescue_bonus = false;
         beasties_delivered = 0;
         if (permanent_captures >= 2) {
             permanent_captures = 0;
+            beasties_advance_type();
             if (game_mode == GAME_MODE_PLAYING) {
                 score_add(1000);
                 ++game_level;
@@ -270,6 +285,7 @@ static void start_demo_mode(void)
     asteroid_set_spawns_paused(false);
     permanent_captures = 0;
     beasties_delivered = 0;
+    full_rescue_bonus = false;
 
     opl_silence_all();
     sound_init();
@@ -288,6 +304,7 @@ static void start_gameplay_mode(void)
     permanent_captures = 0;
     beasties_delivered = 0;
     game_level = 0;
+    full_rescue_bonus = false;
     asteroid_set_level(0);
     defense_set_level(0);
     draw_shield_bar();
@@ -635,16 +652,12 @@ int main(void)
             uint8_t docked;
             if (lander_consume_docked_beasties(&docked)) {
                 beasties_delivered += docked;
-                shield_points += (int16_t)(docked * SHIELD_BEASTIE_REWARD);
-                if (shield_points > SHIELD_START) shield_points = SHIELD_START;
-                draw_shield_bar();
             }
 
             // Return to space when enough are docked and alarm hasn't fired
             if ((uint8_t)(beasties_delivered + permanent_captures) >= 2u
                     && planet_timer < 12 * 60) {
-                shield_points = SHIELD_START;
-                draw_shield_bar();
+                full_rescue_bonus = (beasties_delivered >= 2u);
                 lander_reset();
                 toggle_surface_phase();
             }

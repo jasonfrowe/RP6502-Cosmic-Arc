@@ -39,6 +39,7 @@ typedef struct {
 
 static Beastie beastie_a;
 static Beastie beastie_b;
+static uint8_t spawn_type = 0;  // cycles through BEASTIE_TYPES across surface visits
 
 // Simple LCG pseudo-random — drives erratic AI
 static uint16_t prng_state = 0x1337u;
@@ -102,11 +103,9 @@ static void update_one(Beastie* beastie, unsigned config, bool enabled)
     if (beastie->x <= BEASTIE_LEFT_LIMIT) {
         beastie->x = BEASTIE_LEFT_LIMIT;
         beastie->dx = 1;
-        beastie->type = (uint8_t)((beastie->type + 1u) % BEASTIE_TYPES);
     } else if (beastie->x >= BEASTIE_RIGHT_LIMIT) {
         beastie->x = BEASTIE_RIGHT_LIMIT;
         beastie->dx = -1;
-        beastie->type = (uint8_t)((beastie->type + 1u) % BEASTIE_TYPES);
     }
 
     if (++beastie->tick >= BEASTIE_ANIM_TICKS) {
@@ -216,8 +215,9 @@ static void update_smart(Beastie *beastie, unsigned config,
 
 void beasties_init(void)
 {
+    spawn_type = 0;
     reset_one(&beastie_a, 48, 1, 0);
-    reset_one(&beastie_b, 248, -1, 2);
+    reset_one(&beastie_b, 248, -1, 0);
 
     hide_beastie(BEASTIE1_CONFIG);
     hide_beastie(BEASTIE2_CONFIG);
@@ -225,8 +225,9 @@ void beasties_init(void)
 
 void beasties_reset(void)
 {
+    spawn_type = 0;
     reset_one(&beastie_a, 48, 1, 0);
-    reset_one(&beastie_b, 248, -1, 2);
+    reset_one(&beastie_b, 248, -1, 0);
 
     hide_beastie(BEASTIE1_CONFIG);
     hide_beastie(BEASTIE2_CONFIG);
@@ -266,8 +267,13 @@ void beasties_spawn(uint8_t count)
     hide_beastie(BEASTIE2_CONFIG);
     beastie_a.visible = false;
     beastie_b.visible = false;
-    if (count >= 1) reset_one(&beastie_a, 48,  1, 0);
-    if (count >= 2) reset_one(&beastie_b, 248, -1, 2);
+    if (count >= 1) reset_one(&beastie_a, 48,  1, spawn_type);
+    if (count >= 2) reset_one(&beastie_b, 248, -1, spawn_type);
+}
+
+void beasties_advance_type(void)
+{
+    spawn_type = (uint8_t)((spawn_type + 1u) % BEASTIE_TYPES);
 }
 
 // Returns x of beastie 0=A or 1=B, or -1 if paused/captured.
