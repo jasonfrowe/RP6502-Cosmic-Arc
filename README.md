@@ -1,12 +1,94 @@
 # Cosmic Arc for RP6502
 
-A modern reimagining of the 1982 Atari 2600 classic **Cosmic Arc** by Imagic, rewritten for the **Picocomputer 6502 (RP6502)** using the LLVM-MOS SDK.
+A modern reimagining of the 1982 Atari 2600 classic **Cosmic Ark** by Imagic, rewritten for the **Picocomputer 6502 (RP6502)** using the LLVM-MOS SDK.
 
-## Project Goal
-This project serves as a template and development bed for creating a high-fidelity version of Cosmic Arc. Leveraging the RP6502's advanced graphics capabilities (sprites, 16-bit color, and larger memory), we aim to move beyond the technical limitations of the original Atari 2600 hardware while preserving the core gameplay loop:
-- Defending the mothership from planetary defenses.
-- Deploying the shuttle to rescue planetary inhabitants.
-- Navigating the starfield.
+---
+
+## Story
+
+The sun of Alpha Ro is fading fast! Soon it will flicker out. The Cosmic Ark races to save creatures from doomed planets in that solar system. Meteor showers bombard the Ark, threatening its Atlantean crew — and planetary defense systems make this mission of mercy doubly treacherous! Time and energy slip away. Work fast, or these defenceless little beasties will disappear for all time.
+
+---
+
+## How to Play
+
+### Starting the Game
+From the title / demo screen, press **Space** (or **A** on a gamepad) to begin. Release and press again to start — a press-and-release is required so the game starts intentionally.
+
+---
+
+### Game Play
+
+Cosmic Arc moves through two distinct phases:
+
+#### 1 — Asteroid Shower (Deep Space)
+
+The Cosmic Ark battles its way through an asteroid shower while drifting through deep space.
+
+- Fire your laser cannon in any of four directions.
+- **Keyboard:** tap an **Arrow key** to fire in that direction.
+- **Gamepad:** tap the **D-pad** or **left stick** in the direction you wish to fire.
+- The joystick / arrow key must return to the neutral (centred) position between each shot.
+- Firing costs 1 energy unit — don't spray blindly.
+- After destroying 8 asteroids the Ark descends toward the nearest planet.
+
+> **Note:** Asteroids can approach from any side. Stay alert and prioritise threats closest to the Ark.
+
+#### 2 — Shuttleship Rescue (Planet Surface)
+
+If you survived the asteroid shower, the Cosmic Ark descends and lands. A shuttleship launches automatically from the Ark's bay.
+
+**Piloting the shuttleship:**
+
+| Action | Keyboard | Gamepad |
+|---|---|---|
+| Move left | ← Left Arrow | D-pad / left stick left |
+| Move right | → Right Arrow | D-pad / left stick right |
+| Tractor beam | Space | A button |
+
+- Line up the shuttleship directly over a beastie, then **press and hold** the tractor beam button.
+- Keep the beam active until the creature is safely aboard — releasing too early drops it back to the surface.
+- A blip sounds when a beastie is successfully captured.
+- Try to capture **both** beasties and return before the warning klaxon sounds. If you manage it, the Ark's energy is **fully restored**.
+- If the warning sounds before both are caught, the shuttleship automatically returns. Defend the Ark through the next asteroid wave, then the Ark will return to the same planet to complete the rescue.
+
+> **Beware!** Automatic planetary defense turrets are located on either side of the planet surface. They move up and down and fire at intervals. A direct hit costs energy and releases any beastie the shuttleship was carrying.
+
+---
+
+### Energy (Shields)
+
+The shield bar at the bottom of the screen represents your energy reserves. The game ends when energy is depleted.
+
+| Event | Energy Change |
+|---|---|
+| Destroy an asteroid | +1 |
+| Capture a beastie | +12 |
+| Capture both beasties before the klaxon | **Full restore** |
+| Asteroid strikes the Ark | −12 |
+| Fire the laser | −1 |
+
+---
+
+### Scoring
+
+| Event | Points |
+|---|---|
+| Destroy an asteroid | 10 |
+| Capture both beasties and return to Ark | 1 000 |
+
+Your score is displayed at the bottom of the screen.
+
+---
+
+### Tips
+
+- Prioritise beastie rescues — the +12 energy per capture and the full-restore bonus are the only reliable way to sustain long runs.
+- Beasties are skittish and will dodge the shuttleship. Anticipate their movement and cut them off rather than chasing.
+- Planetary defense turrets cannot be destroyed. Learn their firing rhythm and move between shots.
+- If the full-rescue bonus is out of reach, at least capture one beastie before the klaxon to offset the energy cost of the coming asteroid wave.
+
+---
 
 ## Prerequisites
 
