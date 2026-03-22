@@ -263,7 +263,7 @@ void lander_update(bool planet_phase)
                 // Animation complete — actually respawn.
                 lander_reset();
                 lander_active = true;
-                lander_y = LANDER_START_Y + 8;
+                lander_y = LANDER_START_Y;  // Add +8 to make the lander appear to pop up from the tube rather than drop down into it.
                 write_lander_pos(lander_x, lander_y);
             } else {
                 write_lander_frame((uint8_t)(DEATH_FRAME_BASE + death_frame));
@@ -273,9 +273,9 @@ void lander_update(bool planet_phase)
     }
 
     if (!lander_active) {
-        // Parked - hold DOWN for 0.5s (30 ticks) to release the lander
+        // Parked - hold DOWN for 0.1s (6 ticks) to release the lander
         if (is_action_pressed(0, ACTION_REVERSE_THRUST)) {
-            if (++launch_delay >= 30) {
+            if (++launch_delay >= 6) {
                 lander_active = true;
                 lander_x = LANDER_START_X;
                 lander_y = LANDER_START_Y;

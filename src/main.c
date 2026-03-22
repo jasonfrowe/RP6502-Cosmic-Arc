@@ -35,6 +35,7 @@ unsigned BEAM_CONFIG;
 #define SHIELD_START 48
 #define SHIELD_HIT_LOSS 12
 #define SHIELD_FIRE_LOSS 1
+#define SHIELD_LANDER_DEATH_LOSS 2
 #define SHIELD_ASTEROID_REWARD 1
 #define SHIELD_BEASTIE_REWARD 12
 #define SHIELD_SEGMENTS 6
@@ -963,8 +964,13 @@ int main(void)
         }
         lander_update(planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING);
         if (planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING) {
-            if (defense_update())
+            if (defense_update()) {
                 lander_respawn();
+                shield_points -= SHIELD_LANDER_DEATH_LOSS;
+                draw_shield_bar();
+                if (game_over_if_shields_depleted())
+                    continue;
+            }
         }
 
         if (game_mode == GAME_MODE_PLAYING && planet_surface_phase) {
