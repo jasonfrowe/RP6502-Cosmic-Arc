@@ -439,6 +439,11 @@ void lander_respawn(void)
     sound_play_lander_death();
 }
 
+bool lander_is_beam_active(void)
+{
+    return beam_active;
+}
+
 bool lander_consume_docked_beasties(uint8_t *count)
 {
     if (lander_docked_delivery == 0) return false;
