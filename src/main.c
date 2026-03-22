@@ -392,10 +392,10 @@ static void gameover_write_text_tiles(void)
     uint8_t c;
     for (c = 0; c < GAMEOVER_TEXT_COL_COUNT; ++c) {
         tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
-                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 18,
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 16,
                       gameover_text_row18[c]);
         tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
-                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 19,
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 17,
                       gameover_text_row19[c]);
     }
 }
@@ -405,9 +405,9 @@ static void gameover_clear_text_tiles(void)
     uint8_t c;
     for (c = 0; c < GAMEOVER_TEXT_COL_COUNT; ++c) {
         tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
-                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 18, 0);
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 16, 0);
         tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
-                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 19, 0);
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 17, 0);
     }
 }
 
