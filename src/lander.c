@@ -9,7 +9,7 @@
 #include "sound.h"
 
 #define LANDER_START_X 152
-#define LANDER_START_Y (112 + 4) 
+#define LANDER_START_Y (112 + 3) 
 #define LANDER_SPEED 1
 
 // Allowed movement zones (8px tiles, 16x16 sprite top-left bounds)
@@ -24,7 +24,7 @@
 #define ZONE_SURFACE_Y_MAX  (22 * 8 - 0)              // 176: keeps sprite within row 22
 // Launch tube: tiles (19,11)-(20,12) — exactly 16px wide, one sprite wide
 #define ZONE_TUBE_X         (19 * 8)                  // 152
-#define ZONE_TUBE_Y_MIN     (14 * 8 + 4)              // 116: dock/start position
+#define ZONE_TUBE_Y_MIN     (14 * 8 + 3)              // 116: dock/start position
 #define ZONE_TUBE_Y_MAX     (15 * 8 - 1)              // 119: bottom of row 14
 
 // Beam tile layout: 4px-wide beam at 8 sub-pixel offsets within an 8px tile column.
@@ -84,6 +84,7 @@ static int16_t beam_beastie_y;
 static uint8_t beasties_aboard;       // beamed up but not yet docked
 static uint8_t aboard_indices[2];     // beastie sprite index for each aboard slot
 static uint8_t lander_docked_delivery; // set on dock, consumed once by main.c
+static bool lander_docking_pending;   // reached top; waiting for thrust release to dock
 
 static void beam_palette_write(uint8_t index, uint16_t color)
 {
@@ -229,6 +230,7 @@ void lander_reset(void)
     lander_y = LANDER_START_Y;
     lander_active = false;
     lander_dying = false;
+    lander_docking_pending = false;
     death_frame = 0;
     death_tick = 0;
     launch_delay = 0;
@@ -302,9 +304,12 @@ void lander_update(bool planet_phase)
             sound_set_lander_motor(false);
         }
 
-        // Dock when returned to the top of the launch tube
-        if (lander_y <= ZONE_TUBE_Y_MIN) {
+        // Dock when returned to the top of the launch tube — wait for thrust release
+        if (lander_y <= ZONE_TUBE_Y_MIN)
+            lander_docking_pending = true;
+        if (lander_docking_pending && !is_action_pressed(0, ACTION_THRUST)) {
             lander_active = false;
+            lander_docking_pending = false;
             launch_delay = 0;
             sound_set_lander_motor(false);
             sound_set_beam(false);

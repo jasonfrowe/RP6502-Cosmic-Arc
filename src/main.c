@@ -36,6 +36,7 @@ unsigned BEAM_CONFIG;
 #define SHIELD_HIT_LOSS 12
 #define SHIELD_FIRE_LOSS 1
 #define SHIELD_ASTEROID_REWARD 1
+#define SHIELD_BEASTIE_REWARD 12
 #define SHIELD_SEGMENTS 6
 #define SHIELD_POINTS_PER_SEGMENT 8
 #define SHIELD_BAR_X0 17
@@ -178,7 +179,11 @@ static void toggle_surface_phase(void)
         // Leaving the planet: beasties that docked are now fully captured.
         permanent_captures += beasties_delivered;
         beasties_delivered = 0;
-        if (permanent_captures >= 2) permanent_captures = 0;
+        if (permanent_captures >= 2) {
+            permanent_captures = 0;
+            if (game_mode == GAME_MODE_PLAYING)
+                score_add(1000);
+        }
         defense_hide();
     }
 
@@ -616,12 +621,18 @@ int main(void)
         if (game_mode == GAME_MODE_PLAYING && planet_surface_phase) {
             // Accumulate beasties docked this visit; fully captured only when we leave
             uint8_t docked;
-            if (lander_consume_docked_beasties(&docked))
+            if (lander_consume_docked_beasties(&docked)) {
                 beasties_delivered += docked;
+                shield_points += (int16_t)(docked * SHIELD_BEASTIE_REWARD);
+                if (shield_points > SHIELD_START) shield_points = SHIELD_START;
+                draw_shield_bar();
+            }
 
             // Return to space when enough are docked and alarm hasn't fired
             if ((uint8_t)(beasties_delivered + permanent_captures) >= 2u
                     && planet_timer < 12 * 60) {
+                shield_points = SHIELD_START;
+                draw_shield_bar();
                 lander_reset();
                 toggle_surface_phase();
             }
