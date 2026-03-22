@@ -18,6 +18,8 @@ rp6502_asset(CosmicArc 0x15A20 images/beasties.bin)
 rp6502_asset(CosmicArc 0x16420 images/lander.bin)
 rp6502_asset(CosmicArc 0x17220 images/beam.bin)
 rp6502_asset(CosmicArc help src/help.txt)
+rp6502_asset(CosmicArc COSMIC1.BIN music/COSMIC1.BIN)
+rp6502_asset(CosmicArc COSMIC2.BIN music/COSMIC2.BIN)
 
 rp6502_executable(CosmicArc
     DATA file 
