@@ -363,6 +363,42 @@ static void gameover_restore_tiles(void)
     gameover_snapshot_valid = false;
 }
 
+#define GAMEOVER_TEXT_X0  11
+#define GAMEOVER_TEXT_COL_COUNT 18
+
+static const uint8_t gameover_text_row18[GAMEOVER_TEXT_COL_COUNT] = {
+    217, 218, 219, 220, 183, 221, 222, 223, 224, 225,
+    226, 227, 228, 229, 230, 231, 232, 233
+};
+static const uint8_t gameover_text_row19[GAMEOVER_TEXT_COL_COUNT] = {
+    234, 235, 236, 237, 238, 239, 240, 241, 242, 234,
+    243, 244, 245, 246, 247, 248, 249, 250
+};
+
+static void gameover_write_text_tiles(void)
+{
+    uint8_t c;
+    for (c = 0; c < GAMEOVER_TEXT_COL_COUNT; ++c) {
+        tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 18,
+                      gameover_text_row18[c]);
+        tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 19,
+                      gameover_text_row19[c]);
+    }
+}
+
+static void gameover_clear_text_tiles(void)
+{
+    uint8_t c;
+    for (c = 0; c < GAMEOVER_TEXT_COL_COUNT; ++c) {
+        tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 18, 0);
+        tilemap_write(MOTHERSHIP_MAP_TILEMAP_DATA,
+                      (uint8_t)(GAMEOVER_TEXT_X0 + c), 19, 0);
+    }
+}
+
 static void gameover_palette_blackout(void)
 {
     uint16_t i;
@@ -435,6 +471,7 @@ static void start_demo_mode(void)
 {
     game_mode = GAME_MODE_DEMO;
     gameover_restore_tiles();
+    gameover_clear_text_tiles();
     restore_full_palette();
     starfield_init();
     fire_start_armed = false;
@@ -721,6 +758,7 @@ int main(void)
                 mothership_update();
                 if (mothership_consume_respawned_after_destruction()) {
                     gameover_replace_tiles();
+                    gameover_write_text_tiles();
                     gameover_palette_blackout();
                     gameover_init_colors();
                     gameover_stage      = 1;
