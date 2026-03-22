@@ -36,7 +36,7 @@ The Cosmic Ark battles its way through an asteroid shower while drifting through
 
 #### 2 — Shuttleship Rescue (Planet Surface)
 
-If you survived the asteroid shower, the Cosmic Ark descends and lands. A shuttleship launches automatically from the Ark's bay.
+If you survived the asteroid shower, the Cosmic Ark descends and lands. A shuttleship launches from the Ark's bay by holding down on the D-pad / left stick.
 
 **Piloting the shuttleship:**
 
