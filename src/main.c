@@ -614,13 +614,7 @@ int main(void)
         {
             bool on_planet = planet_surface_phase && mothership_is_landed();
             bool smart = (game_mode == GAME_MODE_PLAYING) && on_planet;
-            int16_t beam_cx = -1;
-            if (smart && lander_is_beam_active()) {
-                int16_t lx, ly;
-                lander_get_pos(&lx, &ly);
-                beam_cx = (int16_t)(lx + 8);
-            }
-            beasties_update(on_planet, smart, beam_cx);
+            beasties_update(on_planet, smart, 0);
         }
         lander_update(planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING);
         if (planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING) {

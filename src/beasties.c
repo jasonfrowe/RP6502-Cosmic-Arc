@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "constants.h"
 #include "beasties.h"
+#include "lander.h"
 
 #define BEASTIE_SIZE 8
 #define BEASTIE_FRAME_SIZE (BEASTIE_SIZE * BEASTIE_SIZE * 2)
@@ -14,10 +15,11 @@
 #define BEASTIE_ANIM_TICKS 8
 
 // Smart AI constants
-#define FLEE_RANGE    48   // flee beam within this many px
-#define SEP_MIN       10   // minimum px separation between beasties
-#define ERRATIC_MIN   15   // min ticks between spontaneous direction changes
-#define ERRATIC_RANGE 60   // random extra ticks added to min
+#define LANDER_EVADE_RANGE  56   // flee lander within this many px (always)
+#define BEAM_EVADE_RANGE    72   // wider flee zone when beam is active
+#define SEP_MIN             10   // minimum px separation between beasties
+#define ERRATIC_MIN          8   // min ticks between spontaneous direction changes
+#define ERRATIC_RANGE       25   // random extra ticks added to min
 
 typedef struct {
     int16_t x;
@@ -112,12 +114,14 @@ static void update_one(Beastie* beastie, unsigned config, bool enabled)
     beastie->visible = true;
 }
 
-// Planet-phase smart update: erratic wander, beam flee, beastie separation.
+// Planet-phase smart update: erratic wander, lander/beam flee, beastie separation.
 static void update_smart(Beastie *beastie, unsigned config,
-                         bool enabled, int16_t beam_cx, Beastie *other)
+                         bool enabled, int16_t lander_cx,
+                         bool beam_active, Beastie *other)
 {
     bool moving_right;
     int16_t new_x;
+    bool fleeing = false;
 
     if (!enabled || beastie->paused) {
         if (beastie->visible) {
@@ -127,26 +131,34 @@ static void update_smart(Beastie *beastie, unsigned config,
         return;
     }
 
-    // Erratic: spontaneous direction changes at random intervals.
-    if (beastie->erratic_tick == 0) {
-        beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % ERRATIC_RANGE));
-        beastie->dx = (prng_next() & 1u) ? (int8_t)1 : (int8_t)-1;
-    } else {
-        --beastie->erratic_tick;
-    }
-
-    // Beam avoidance: flee if beam is nearby (overrides erratic direction).
-    if (beam_cx >= 0) {
+    // Lander / beam avoidance — highest priority, always evaluated.
+    if (lander_cx >= 0) {
         int16_t center = (int16_t)(beastie->x + 4);
-        int16_t dist = (int16_t)(center - beam_cx);
+        int16_t dist   = (int16_t)(center - lander_cx);
         if (dist < 0) dist = -dist;
-        if (dist < FLEE_RANGE) {
-            beastie->dx = (center < beam_cx) ? (int8_t)-1 : (int8_t)1;
-            beastie->erratic_tick = 12; // hold flee direction briefly
+        int16_t range  = beam_active ? BEAM_EVADE_RANGE : LANDER_EVADE_RANGE;
+        if (dist < range) {
+            // Flee away from lander centre; 75% chance to obey each frame so
+            // movement looks nervous rather than perfectly mechanical.
+            if ((prng_next() & 0x03u) != 0u) {
+                beastie->dx = (center < lander_cx) ? (int8_t)-1 : (int8_t)1;
+                beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % 8u));
+            }
+            fleeing = true;
         }
     }
 
-    // Separation: don't let beasties stack (highest priority).
+    // Erratic wander: spontaneous direction changes when not actively fleeing.
+    if (!fleeing) {
+        if (beastie->erratic_tick == 0) {
+            beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % ERRATIC_RANGE));
+            beastie->dx = (prng_next() & 1u) ? (int8_t)1 : (int8_t)-1;
+        } else {
+            --beastie->erratic_tick;
+        }
+    }
+
+    // Separation: don't let beasties stack.
     if (!other->paused) {
         int16_t sep = (int16_t)(beastie->x - other->x);
         if (sep < 0) sep = -sep;
@@ -159,7 +171,7 @@ static void update_smart(Beastie *beastie, unsigned config,
     if (new_x <= BEASTIE_LEFT_LIMIT) {
         new_x = BEASTIE_LEFT_LIMIT;
         beastie->dx = 1;
-        beastie->erratic_tick = 0; // pick new direction next frame
+        beastie->erratic_tick = 0;
     } else if (new_x >= BEASTIE_RIGHT_LIMIT) {
         new_x = BEASTIE_RIGHT_LIMIT;
         beastie->dx = -1;
@@ -199,8 +211,12 @@ void beasties_reset(void)
 void beasties_update(bool enabled, bool smart, int16_t beam_center_x)
 {
     if (smart) {
-        update_smart(&beastie_a, BEASTIE1_CONFIG, enabled, beam_center_x, &beastie_b);
-        update_smart(&beastie_b, BEASTIE2_CONFIG, enabled, beam_center_x, &beastie_a);
+        int16_t lx, ly;
+        bool beam = lander_is_beam_active();
+        lander_get_pos(&lx, &ly);
+        int16_t lander_cx = (int16_t)(lx + 8);
+        update_smart(&beastie_a, BEASTIE1_CONFIG, enabled, lander_cx, beam, &beastie_b);
+        update_smart(&beastie_b, BEASTIE2_CONFIG, enabled, lander_cx, beam, &beastie_a);
     } else {
         update_one(&beastie_a, BEASTIE1_CONFIG, enabled);
         update_one(&beastie_b, BEASTIE2_CONFIG, enabled);
