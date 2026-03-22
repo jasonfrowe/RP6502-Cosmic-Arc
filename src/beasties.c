@@ -10,25 +10,30 @@
 #define BEASTIE_TYPES 5
 #define BEASTIE_FRAMES_PER_DIR 2
 // BEASTIE_GROUND_Y is defined in constants.h
-#define BEASTIE_LEFT_LIMIT 0
-#define BEASTIE_RIGHT_LIMIT (SCREEN_WIDTH - BEASTIE_SIZE)
+// Inner limits match the lander's surface zone so beasties can't escape to
+// corners the lander can't reach.  Lander: x_min=12, x_max=308 (screen is 320x240).
+#define BEASTIE_LEFT_LIMIT  12
+#define BEASTIE_RIGHT_LIMIT (308 - BEASTIE_SIZE)  // 308: matches lander X max
 #define BEASTIE_ANIM_TICKS 8
 
 // Smart AI constants
-#define LANDER_EVADE_RANGE  56   // flee lander within this many px (always)
-#define BEAM_EVADE_RANGE    72   // wider flee zone when beam is active
+#define LANDER_EVADE_RANGE  12    // flee lander within this many px (always)
+#define BEAM_EVADE_RANGE    16   // wider flee zone when beam is active
 #define SEP_MIN             10   // minimum px separation between beasties
-#define ERRATIC_MIN          8   // min ticks between spontaneous direction changes
-#define ERRATIC_RANGE       25   // random extra ticks added to min
+#define ERRATIC_MIN          4   // min ticks between spontaneous direction changes
+#define ERRATIC_RANGE       12   // random extra ticks added to min
 
 typedef struct {
     int16_t x;
     int8_t dx;
+    uint8_t speed;           // 1=normal, 2=fast (alternates 2px/1px = 1.5px avg)
+    uint8_t half_tick;       // LSB alternates to produce 1.5px movement
     uint8_t type;
     uint8_t frame;
     uint8_t tick;
     bool visible;
     bool paused;       // true while beam is capturing or after capture
+    bool flee_locked;  // true while committed to a flee direction inside evade range
     uint8_t erratic_tick;   // countdown to next direction change
 } Beastie;
 
@@ -74,6 +79,9 @@ static void reset_one(Beastie* beastie, int16_t x, int8_t dx, uint8_t type)
     beastie->tick = 0;
     beastie->visible = false;
     beastie->paused = false;
+    beastie->flee_locked = false;
+    beastie->speed = 1;
+    beastie->half_tick = 0;
     beastie->erratic_tick = 0;
 }
 
@@ -138,18 +146,29 @@ static void update_smart(Beastie *beastie, unsigned config,
         if (dist < 0) dist = -dist;
         int16_t range  = beam_active ? BEAM_EVADE_RANGE : LANDER_EVADE_RANGE;
         if (dist < range) {
-            // Flee away from lander centre; 75% chance to obey each frame so
-            // movement looks nervous rather than perfectly mechanical.
-            if ((prng_next() & 0x03u) != 0u) {
-                beastie->dx = (center < lander_cx) ? (int8_t)-1 : (int8_t)1;
+            if (!beastie->flee_locked) {
+                // First frame inside range: commit to a direction and speed.
+                uint8_t r = prng_next();
+                // 75% dart (reverse), 25% flee away from lander
+                if ((r & 0x03u) < 3u) {
+                    beastie->dx = (int8_t)-beastie->dx;
+                } else {
+                    beastie->dx = (center < lander_cx) ? (int8_t)-1 : (int8_t)1;
+                }
+                beastie->speed = (dist < LANDER_EVADE_RANGE && (prng_next() & 1u)) ? 2u : 1u;
                 beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % 8u));
+                beastie->flee_locked = true;
             }
+            // Hold committed direction until we escape — don't re-roll.
             fleeing = true;
+        } else {
+            beastie->flee_locked = false;  // exited range, allow re-commit next entry
         }
     }
 
     // Erratic wander: spontaneous direction changes when not actively fleeing.
     if (!fleeing) {
+        beastie->speed = 1;  // always normal speed when not evading
         if (beastie->erratic_tick == 0) {
             beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % ERRATIC_RANGE));
             beastie->dx = (prng_next() & 1u) ? (int8_t)1 : (int8_t)-1;
@@ -167,14 +186,19 @@ static void update_smart(Beastie *beastie, unsigned config,
     }
 
     // Apply movement with wall bounce.
-    new_x = (int16_t)(beastie->x + beastie->dx);
+    // speed==2: alternate 2px/1px each frame for a smooth ~1.5px average
+    uint8_t move_px = (beastie->speed == 2u && (beastie->half_tick & 1u)) ? 2u : 1u;
+    beastie->half_tick++;
+    new_x = (int16_t)(beastie->x + beastie->dx * move_px);
     if (new_x <= BEASTIE_LEFT_LIMIT) {
         new_x = BEASTIE_LEFT_LIMIT;
         beastie->dx = 1;
+        beastie->speed = 1;
         beastie->erratic_tick = 0;
     } else if (new_x >= BEASTIE_RIGHT_LIMIT) {
         new_x = BEASTIE_RIGHT_LIMIT;
         beastie->dx = -1;
+        beastie->speed = 1;
         beastie->erratic_tick = 0;
     }
     beastie->x = new_x;
