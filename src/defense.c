@@ -25,13 +25,23 @@
 // phase 0  = top of row 18 (fully extended)
 // phase 39 = bottom of row 22 (fully retracted)
 #define TOWER_PHASE_COUNT (TOWER_ROW1-TOWER_ROW0+1) * TOWER_SUBPIXELS
-#define TOWER_ANIM_TICKS   4   // frames per phase step
+// Level-scaled parameters (min/max/per-level step)
+#define TOWER_ANIM_TICKS_BASE       4   // frames per phase step (slowest)
+#define TOWER_ANIM_TICKS_MIN        1   // fastest
+#define TOWER_ANIM_TICKS_PER_LEVEL  1
+
+#define PULSE_PERIOD_BASE       120  // ~2 s at 60 Hz between pulses
+#define PULSE_PERIOD_MIN         30  // ~0.5 s
+#define PULSE_PERIOD_PER_LEVEL   15
+
+#define PULSE_DURATION     5   // frames the pulse is visible (~quick flash)
+
+static uint8_t tower_anim_ticks = TOWER_ANIM_TICKS_BASE;
+static uint8_t pulse_period     = PULSE_PERIOD_BASE;
 
 // Gun tile lookup: index matches tower sub-pixel (0-7).
 static const uint8_t gun_l_tiles[8] = {35, 213, 36, 37, 38, 39, 40, 41};
 static const uint8_t gun_r_tiles[8] = {42, 214, 43, 44, 45, 46, 47, 48};
-#define PULSE_PERIOD      180  // ~3 s at 60 Hz between pulses
-#define PULSE_DURATION     5   // frames the pulse is visible (~quick flash)
 
 // tower_dir: false = rising (phase --), true = sinking (phase ++)
 static uint8_t tower_phase;
@@ -95,12 +105,26 @@ static void draw_guns(void)
     dtile(GUN_COL_R, top_row, gun_r_tiles[sp]);
 }
 
+void defense_set_level(uint8_t level)
+{
+    uint8_t t = TOWER_ANIM_TICKS_BASE;
+    uint8_t tdec = (uint8_t)(level * TOWER_ANIM_TICKS_PER_LEVEL);
+    tower_anim_ticks = (t > TOWER_ANIM_TICKS_MIN + tdec)
+                       ? (uint8_t)(t - tdec)
+                       : TOWER_ANIM_TICKS_MIN;
+
+    uint8_t pdec = (uint8_t)(level * PULSE_PERIOD_PER_LEVEL);
+    pulse_period = (PULSE_PERIOD_BASE > PULSE_PERIOD_MIN + pdec)
+                   ? (uint8_t)(PULSE_PERIOD_BASE - pdec)
+                   : PULSE_PERIOD_MIN;
+}
+
 void defense_init(void)
 {
     tower_phase = 0;   // start fully extended
     tower_tick = 0;
     tower_dir = true;  // begin sinking
-    pulse_cooldown = PULSE_PERIOD;
+    pulse_cooldown = pulse_period;
     pulse_timer = 0;
     pulse_tile = PULSE_TILE_BASE;
     pulse_row = TOWER_ROW0;
@@ -147,7 +171,7 @@ bool defense_update(void)
     }
 
     // Advance tower animation (triangle wave with explicit direction).
-    if (++tower_tick >= TOWER_ANIM_TICKS) {
+    if (++tower_tick >= tower_anim_ticks) {
         tower_tick = 0;
         if (tower_dir) {
             if (tower_phase < TOWER_PHASE_COUNT - 1u) ++tower_phase;
@@ -191,7 +215,7 @@ bool defense_update(void)
         for (col = GUN_COL_L; col <= GUN_COL_R; ++col)
             dtile(col, pulse_row, pulse_tile);
         pulse_timer    = PULSE_DURATION;
-        pulse_cooldown = PULSE_PERIOD;
+        pulse_cooldown = pulse_period;
         sound_play_defense_pulse();
     }
 

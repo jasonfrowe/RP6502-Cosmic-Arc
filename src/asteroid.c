@@ -6,19 +6,31 @@
 #include "laser.h"
 
 #define ASTEROID_SIZE 8
-#define ASTEROID_SPEED 2
 #define ASTEROID_FRAME_COUNT 4
 #define ASTEROID_FRAME_SIZE (ASTEROID_SIZE * ASTEROID_SIZE * 2)
 #define ASTEROID_ANIM_TICKS 6
-#define ASTEROID_SPAWN_DELAY 45
+
+// Level-scaled parameters — speed in 1/8-pixel units for smooth ramping.
+// vel / 8 gives px/frame:  16=2.0, 20=2.5, 24=3.0, 28=3.5, 32=4.0
+#define ASTEROID_VEL_BASE       16   // 2.0 px/frame
+#define ASTEROID_VEL_MAX        32   // 4.0 px/frame
+#define ASTEROID_VEL_PER_LEVEL   2   // +0.5 px/frame per level
+#define ASTEROID_SPAWN_DELAY_BASE  45
+#define ASTEROID_SPAWN_DELAY_MIN   20
+#define ASTEROID_SPAWN_DELAY_PER_LEVEL 5
+
+static int16_t asteroid_vel        = ASTEROID_VEL_BASE;  // 1/8-px units
+static uint8_t asteroid_spawn_delay = ASTEROID_SPAWN_DELAY_BASE;
 
 #define MOTHERSHIP_WIDTH 128
 #define MOTHERSHIP_HEIGHT 24
 
 static int16_t asteroid_x;
 static int16_t asteroid_y;
-static int8_t asteroid_dx;
-static int8_t asteroid_dy;
+static int16_t asteroid_subx;  // fractional x accumulator in 1/8-px units
+static int16_t asteroid_suby;  // fractional y accumulator in 1/8-px units
+static int8_t  asteroid_dir_x; // direction: -1, 0, or +1
+static int8_t  asteroid_dir_y; // direction: -1, 0, or +1
 static bool asteroid_active;
 static uint8_t asteroid_frame;
 static uint8_t asteroid_anim_tick;
@@ -52,8 +64,10 @@ static void deactivate_asteroid(void)
     asteroid_active = false;
     asteroid_x = -32;
     asteroid_y = -32;
-    asteroid_dx = 0;
-    asteroid_dy = 0;
+    asteroid_subx = 0;
+    asteroid_suby = 0;
+    asteroid_dir_x = 0;
+    asteroid_dir_y = 0;
     write_asteroid_pos(-32, -32);
 }
 
@@ -85,31 +99,33 @@ static void spawn_asteroid(void)
 
     asteroid_frame = 0;
     asteroid_anim_tick = 0;
+    asteroid_subx = 0;
+    asteroid_suby = 0;
 
     switch (side) {
         case 0: // top -> down
             asteroid_x = MOTHERSHIP_X - (ASTEROID_SIZE / 2);
             asteroid_y = -ASTEROID_SIZE;
-            asteroid_dx = 0;
-            asteroid_dy = ASTEROID_SPEED;
+            asteroid_dir_x = 0;
+            asteroid_dir_y = 1;
             break;
         case 1: // right -> left
             asteroid_x = SCREEN_WIDTH;
             asteroid_y = MOTHERSHIP_Y - (ASTEROID_SIZE / 2);
-            asteroid_dx = -ASTEROID_SPEED;
-            asteroid_dy = 0;
+            asteroid_dir_x = -1;
+            asteroid_dir_y = 0;
             break;
         case 2: // bottom -> up
             asteroid_x = MOTHERSHIP_X - (ASTEROID_SIZE / 2);
             asteroid_y = SPACE_HEIGHT;
-            asteroid_dx = 0;
-            asteroid_dy = -ASTEROID_SPEED;
+            asteroid_dir_x = 0;
+            asteroid_dir_y = -1;
             break;
         default: // left -> right
             asteroid_x = -ASTEROID_SIZE;
             asteroid_y = MOTHERSHIP_Y - (ASTEROID_SIZE / 2);
-            asteroid_dx = ASTEROID_SPEED;
-            asteroid_dy = 0;
+            asteroid_dir_x = 1;
+            asteroid_dir_y = 0;
             break;
     }
 
@@ -118,10 +134,23 @@ static void spawn_asteroid(void)
     write_asteroid_pos(asteroid_x, asteroid_y);
 }
 
+void asteroid_set_level(uint8_t level)
+{
+    int16_t v = (int16_t)(ASTEROID_VEL_BASE + (int16_t)level * ASTEROID_VEL_PER_LEVEL);
+    if (v > ASTEROID_VEL_MAX) v = ASTEROID_VEL_MAX;
+    asteroid_vel = v;
+
+    uint8_t dec = (uint8_t)(level * ASTEROID_SPAWN_DELAY_PER_LEVEL);
+    asteroid_spawn_delay = (ASTEROID_SPAWN_DELAY_BASE > ASTEROID_SPAWN_DELAY_MIN + dec)
+                           ? (uint8_t)(ASTEROID_SPAWN_DELAY_BASE - dec)
+                           : ASTEROID_SPAWN_DELAY_MIN;
+}
+
 void asteroid_init(void)
 {
     asteroid_rng = 0xA57Du;
     asteroid_spawn_tick = 0;
+    asteroid_set_level(0);
     deactivate_asteroid();
 }
 
@@ -129,15 +158,26 @@ AsteroidResult asteroid_update(void)
 {
     if (!asteroid_active) {
         // Stop natural asteroid spawning if paused
-        if (!asteroid_spawns_paused && ++asteroid_spawn_tick >= ASTEROID_SPAWN_DELAY) {
+        if (!asteroid_spawns_paused && ++asteroid_spawn_tick >= asteroid_spawn_delay) {
             asteroid_spawn_tick = 0;
             spawn_asteroid();
         }
         return ASTEROID_NONE;
     }
 
-    asteroid_x += asteroid_dx;
-    asteroid_y += asteroid_dy;
+    // Fixed-point motion: accumulate 1/8-px units, carry whole pixels each frame.
+    asteroid_subx += (int16_t)(asteroid_dir_x * asteroid_vel);
+    {
+        int16_t dpx = asteroid_subx / 8;
+        asteroid_subx -= dpx * 8;
+        asteroid_x += dpx;
+    }
+    asteroid_suby += (int16_t)(asteroid_dir_y * asteroid_vel);
+    {
+        int16_t dpy = asteroid_suby / 8;
+        asteroid_suby -= dpy * 8;
+        asteroid_y += dpy;
+    }
 
     if (++asteroid_anim_tick >= ASTEROID_ANIM_TICKS) {
         asteroid_anim_tick = 0;

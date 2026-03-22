@@ -5,6 +5,8 @@
 
 // One-time state clear (called implicitly by defense_reset).
 void defense_init(void);
+// Set difficulty level: faster towers and more frequent pulses.
+void defense_set_level(uint8_t level);
 // Draw towers and guns after terrain tiles are restored on planet entry.
 void defense_reset(void);
 // Erase all defense tiles when leaving the planet phase.

@@ -68,6 +68,7 @@ static uint8_t space_kills = 0;
 static bool laser_fire_held = false;
 static uint8_t permanent_captures = 0;  // beasties captured from previous visits this cycle
 static uint8_t beasties_delivered = 0;  // docked this visit, committed to permanent on departure
+static uint8_t game_level = 0;          // increases with each full capture cycle
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -181,8 +182,12 @@ static void toggle_surface_phase(void)
         beasties_delivered = 0;
         if (permanent_captures >= 2) {
             permanent_captures = 0;
-            if (game_mode == GAME_MODE_PLAYING)
+            if (game_mode == GAME_MODE_PLAYING) {
                 score_add(1000);
+                ++game_level;
+                asteroid_set_level(game_level);
+                defense_set_level(game_level);
+            }
         }
         defense_hide();
     }
@@ -282,6 +287,9 @@ static void start_gameplay_mode(void)
     laser_fire_held = false;
     permanent_captures = 0;
     beasties_delivered = 0;
+    game_level = 0;
+    asteroid_set_level(0);
+    defense_set_level(0);
     draw_shield_bar();
     fire_start_armed = false;
 

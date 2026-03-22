@@ -14,6 +14,5 @@ AsteroidResult asteroid_update(void);
 
 void asteroid_set_planet_phase(bool active);
 void asteroid_set_spawns_paused(bool paused);
-void asteroid_force_spawn(void);
-
+void asteroid_force_spawn(void);void asteroid_set_level(uint8_t level);  // level 0 = default; higher = faster/more frequent
 #endif // ASTEROID_H
