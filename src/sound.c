@@ -66,16 +66,9 @@ static const OPL_Patch capture_patch = {
 };
 
 
-// Quick descending pitch sweep for lander death — buzzy, 2600-inspired
-static const OPL_Patch lander_death_patch = {
-    .m_ave = 0x21, .m_ksl = 0x00, .m_atdec = 0xF3, .m_susrel = 0x00, .m_wave = 0x03,
-    .c_ave = 0x01, .c_ksl = 0x00, .c_atdec = 0xE2, .c_susrel = 0x00, .c_wave = 0x03,
-    .feedback = 0x06,
-};
-
-#define LANDER_DEATH_NOTES      6
-#define LANDER_DEATH_NOTE_TICKS 4   // total ~24 ticks (~400 ms)
-static const uint8_t lander_death_notes[LANDER_DEATH_NOTES] = { 60, 55, 50, 45, 40, 36 };
+#define LANDER_DEATH_NOTES      3
+#define LANDER_DEATH_NOTE_TICKS 10  // total ~30 ticks (~500 ms)
+static const uint8_t lander_death_notes[LANDER_DEATH_NOTES] = { 60, 55, 48 };
 static uint8_t lander_death_timer;
 static uint8_t lander_death_tick;
 
@@ -194,7 +187,11 @@ void sound_play_destruction(void)
     descent_enabled = false;
     asteroid_enabled = false;
     stop_channel(SFX_DESCENT_CH);
+    stop_channel(SFX_LASER_CH);
     stop_channel(SFX_EVENT_CH);
+    beam_requested = false;
+    beam_was_on    = false;
+    beam_tick      = 0;
 
     // Front-load the impact, then let the rest of the sequence dissolve.
     sfx_note_on(SFX_EVENT_CH, &drum_snare, 64, 127);
@@ -376,9 +373,14 @@ void sound_play_defense_pulse(void)
 
 void sound_play_lander_death(void)
 {
+    // Kill beam immediately — player may be holding fire when hit.
+    stop_channel(SFX_LASER_CH);
+    beam_requested = false;
+    beam_was_on    = false;
+    beam_tick      = 0;
     lander_death_timer = (uint8_t)(LANDER_DEATH_NOTES * LANDER_DEATH_NOTE_TICKS);
     lander_death_tick  = 0;
-    sfx_note_on(SFX_DESCENT_CH, &lander_death_patch, lander_death_notes[0], 127);
+    sfx_note_on(SFX_DESCENT_CH, &gm_bank[11], lander_death_notes[0], 127);
 }
 
 void sound_skip_descent_delay(void)
@@ -398,6 +400,11 @@ void sound_play_beastie_aboard(void)
 // ---------------------------------------------------------------------------
 static void update_lander_motor_sound(void)
 {
+    // Death sweep owns SFX_DESCENT_CH — don't let motor state transition stomp it.
+    if (lander_death_timer > 0u) {
+        lander_motor_was_on = lander_motor_requested;
+        return;
+    }
     if (lander_motor_requested != lander_motor_was_on) {
         lander_motor_was_on = lander_motor_requested;
         lander_motor_tick   = 0;
@@ -481,7 +488,7 @@ static void update_lander_death_sound(void)
         uint8_t step = (uint8_t)((LANDER_DEATH_NOTES * LANDER_DEATH_NOTE_TICKS - lander_death_timer)
                                   / LANDER_DEATH_NOTE_TICKS);
         if (step < LANDER_DEATH_NOTES)
-            sfx_note_on(SFX_DESCENT_CH, &lander_death_patch, lander_death_notes[step], 127);
+            sfx_note_on(SFX_DESCENT_CH, &gm_bank[11], lander_death_notes[step], 127);
     }
     lander_death_tick = (uint8_t)((lander_death_tick + 1u) % LANDER_DEATH_NOTE_TICKS);
     if (--lander_death_timer == 0u)
