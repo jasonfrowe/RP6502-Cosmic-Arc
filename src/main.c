@@ -71,6 +71,7 @@ static uint8_t permanent_captures = 0;  // beasties captured from previous visit
 static uint8_t beasties_delivered = 0;  // docked this visit, committed to permanent on departure
 static uint8_t game_level = 0;          // increases with each full capture cycle
 static bool full_rescue_bonus = false;  // true: both beasties rescued same trip before klaxon
+static uint8_t planet_color_set = 0;   // cycles 0-4; drives ground palette variation
 
 #define SONG_HZ 60
 uint8_t vsync_last = 0;
@@ -170,6 +171,25 @@ static void restore_terrain_rows(void)
     }
 }
 
+// Ground palette sets: 5 planets, each offset -N from the base column (stride 16 from index 15)
+#define PLANET_COLOR_SETS    5
+#define PLANET_GROUND_SLOTS  8
+#define PLANET_GROUND_BASE   15
+#define PLANET_GROUND_STRIDE 16
+
+static void apply_planet_ground_palette(uint8_t set)
+{
+    uint8_t slot;
+    for (slot = 0; slot < PLANET_GROUND_SLOTS; ++slot) {
+        uint8_t target = (uint8_t)(PLANET_GROUND_BASE + slot * PLANET_GROUND_STRIDE);
+        uint8_t source = (uint8_t)(target - set);
+        RIA.addr0 = PALETTE_ADDR + ((unsigned)target * 2u);
+        RIA.step0 = 1;
+        RIA.rw0 = tile_palette[source] & 0xFF;
+        RIA.rw0 = tile_palette[source] >> 8;
+    }
+}
+
 static void draw_shield_bar(void);
 
 static void toggle_surface_phase(void)
@@ -199,6 +219,8 @@ static void toggle_surface_phase(void)
             permanent_captures = 0;
             beasties_advance_type();
             if (game_mode == GAME_MODE_PLAYING) {
+                planet_color_set = (uint8_t)((planet_color_set + 1u) % PLANET_COLOR_SETS);
+                apply_planet_ground_palette(planet_color_set);
                 score_add(1000);
                 ++game_level;
                 asteroid_set_level(game_level);
@@ -487,7 +509,8 @@ static void start_demo_mode(void)
     game_mode = GAME_MODE_DEMO;
     gameover_restore_tiles();
     gameover_clear_text_tiles();
-    restore_full_palette();
+    restore_full_palette();  // also restores ground palette
+    planet_color_set = 0;
     starfield_init();
     fire_start_armed = false;
     laser_fire_held = false;
@@ -527,6 +550,7 @@ static void start_gameplay_mode(void)
     beasties_delivered = 0;
     game_level = 0;
     full_rescue_bonus = false;
+    planet_color_set = 0;
     asteroid_set_level(0);
     defense_set_level(0);
     draw_shield_bar();
