@@ -17,11 +17,12 @@
 #define BEASTIE_ANIM_TICKS 8
 
 // Smart AI constants
-#define LANDER_EVADE_RANGE  12    // flee lander within this many px (always)
-#define BEAM_EVADE_RANGE    16   // wider flee zone when beam is active
+#define LANDER_EVADE_RANGE  48   // beastie starts reacting this many px from lander
+#define BEAM_EVADE_RANGE    64   // wider reaction zone when beam is active
 #define SEP_MIN             10   // minimum px separation between beasties
 #define ERRATIC_MIN          4   // min ticks between spontaneous direction changes
 #define ERRATIC_RANGE       12   // random extra ticks added to min
+#define WALL_ZONE           60   // px from wall where centre-drift bias kicks in
 
 typedef struct {
     int16_t x;
@@ -146,15 +147,22 @@ static void update_smart(Beastie *beastie, unsigned config,
         int16_t range  = beam_active ? BEAM_EVADE_RANGE : LANDER_EVADE_RANGE;
         if (dist < range) {
             if (!beastie->flee_locked) {
-                // First frame inside range: commit to a direction and speed.
-                uint8_t r = prng_next();
-                // 75% dart (reverse), 25% flee away from lander
-                if ((r & 0x03u) < 3u) {
-                    beastie->dx = (int8_t)-beastie->dx;
+                // First frame inside range: pick one of three dodge behaviours.
+                int8_t flee_away = (center < lander_cx) ? (int8_t)-1 : (int8_t)1;
+                uint8_t r = prng_next() & 0x03u;
+                if (r < 2u) {
+                    // 50%: run away from lander; half the time at dash speed
+                    beastie->dx = flee_away;
+                    beastie->speed = (prng_next() & 1u) ? 2u : 1u;
+                } else if (r == 2u) {
+                    // 25%: cross-dash TOWARD lander to escape to the opposite side
+                    beastie->dx = (int8_t)-flee_away;
+                    beastie->speed = 2u;
                 } else {
-                    beastie->dx = (center < lander_cx) ? (int8_t)-1 : (int8_t)1;
+                    // 25%: direction reversal (erratic feint)
+                    beastie->dx = (int8_t)-beastie->dx;
+                    beastie->speed = (prng_next() & 1u) ? 2u : 1u;
                 }
-                beastie->speed = (dist < LANDER_EVADE_RANGE && (prng_next() & 1u)) ? 2u : 1u;
                 beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % 8u));
                 beastie->flee_locked = true;
             }
@@ -167,10 +175,20 @@ static void update_smart(Beastie *beastie, unsigned config,
 
     // Erratic wander: spontaneous direction changes when not actively fleeing.
     if (!fleeing) {
-        beastie->speed = 1;  // always normal speed when not evading
         if (beastie->erratic_tick == 0) {
             beastie->erratic_tick = (uint8_t)(ERRATIC_MIN + (prng_next() % ERRATIC_RANGE));
-            beastie->dx = (prng_next() & 1u) ? (int8_t)1 : (int8_t)-1;
+            // Bias toward centre when hugging a wall
+            bool near_left  = (beastie->x < BEASTIE_LEFT_LIMIT  + WALL_ZONE);
+            bool near_right = (beastie->x > BEASTIE_RIGHT_LIMIT - WALL_ZONE);
+            uint8_t rw = prng_next();
+            if (near_left && !near_right)
+                beastie->dx = (rw < 192u) ? (int8_t)1 : (int8_t)-1;   // 75% toward centre
+            else if (near_right && !near_left)
+                beastie->dx = (rw < 192u) ? (int8_t)-1 : (int8_t)1;   // 75% toward centre
+            else
+                beastie->dx = (rw & 1u) ? (int8_t)1 : (int8_t)-1;     // centre zone: 50/50
+            // Occasional short sprint during wander (~19% chance)
+            beastie->speed = (prng_next() < 48u) ? 2u : 1u;
         } else {
             --beastie->erratic_tick;
         }
@@ -193,12 +211,12 @@ static void update_smart(Beastie *beastie, unsigned config,
         new_x = BEASTIE_LEFT_LIMIT;
         beastie->dx = 1;
         beastie->speed = 1;
-        beastie->erratic_tick = 0;
+        beastie->erratic_tick = ERRATIC_MIN;  // hold direction briefly; prevent wall jitter
     } else if (new_x >= BEASTIE_RIGHT_LIMIT) {
         new_x = BEASTIE_RIGHT_LIMIT;
         beastie->dx = -1;
         beastie->speed = 1;
-        beastie->erratic_tick = 0;
+        beastie->erratic_tick = ERRATIC_MIN;  // hold direction briefly; prevent wall jitter
     }
     beastie->x = new_x;
 
