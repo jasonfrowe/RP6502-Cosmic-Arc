@@ -10,7 +10,7 @@
 #define SPRITE_DATA_START       0x0000U // Starting address in XRAM for sprite data
 
 #define MAIN_MAP_DATA           (SPRITE_DATA_START) // Address for main tile bitmap data
-#define MAIN_MAP_DATA_SIZE      0x35C0 // 13760 bytes (215 tiles * 8x8 * 8bpp)
+#define MAIN_MAP_DATA_SIZE      0x3640 // 13888 bytes (217 tiles * 8x8 * 8bpp)
 
 #define MAIN_MAP_TILEMAP_DATA   (MAIN_MAP_DATA + MAIN_MAP_DATA_SIZE) // Address for Main Map tilemap data
 #define MAIN_MAP_TILEMAP_SIZE   0x04B0U // 1200 bytes (40 * 30 tile IDs)

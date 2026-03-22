@@ -54,6 +54,7 @@ unsigned BEAM_CONFIG;
 typedef enum {
     GAME_MODE_DEMO = 0,
     GAME_MODE_PLAYING,
+    GAME_MODE_GAME_OVER,
 } GameMode;
 
 static GameMode game_mode = GAME_MODE_DEMO;
@@ -264,9 +265,178 @@ static void draw_shield_bar(void)
     }
 }
 
+// ── Game-over sequence ────────────────────────────────────────────────────────
+
+#define GAMEOVER_ANIM_FRAMES        7   // animation color groups
+#define GAMEOVER_INDICES_PER_FRAME  7   // palette indices per group
+#define GAMEOVER_ANIM_TICKS         6   // vsync frames per animation step
+#define GAMEOVER_TIMEOUT            (10 * 60)  // 10 s at 60 Hz
+
+// 7 groups of 7 palette indices (stride-16 within each group)
+static const uint8_t gameover_frame_indices[GAMEOVER_ANIM_FRAMES][GAMEOVER_INDICES_PER_FRAME] = {
+    {  31,  47,  63,  79,  95, 111, 127 },
+    {  18,  34,  50,  66,  82,  98, 114 },
+    {  20,  36,  52,  68,  84, 100, 116 },
+    {  21,  37,  53,  69,  85, 101, 117 },
+    {  22,  38,  54,  70,  86, 102, 118 },
+    {  23,  39,  55,  71,  87, 103, 119 },
+    {  24,  40,  56,  72,  88, 104, 120 },
+};
+
+// Palette indices to keep at authored colors during the blackout
+static const uint8_t gameover_preserve_indices[] = {
+    10,                                       // background
+    15,                                       // ground
+    125,                                      // lander
+    107, 113,                                 // score
+    4, 20, 36, 52, 68, 84, 100, 116,         // mothership destruction
+    26, 42, 58, 74, 90, 106, 122,            // starfield
+};
+#define GAMEOVER_PRESERVE_COUNT \
+    ((uint8_t)(sizeof(gameover_preserve_indices) / sizeof(gameover_preserve_indices[0])))
+
+// Full MAIN_MAP snapshot taken before game-over tile replacement
+#define MAIN_MAP_TILE_COUNT (MAIN_MAP_WIDTH_TILES * MAIN_MAP_HEIGHT_TILES)
+static uint8_t gameover_main_map_snapshot[MAIN_MAP_TILE_COUNT];
+static bool    gameover_snapshot_valid = false;
+
+static uint8_t  gameover_stage;      // 0=destroying  1=build-up  2=rotating
+static uint16_t gameover_timer;      // frames since stage-1 start
+static uint8_t  gameover_anim_tick;  // countdown to next animation step
+static uint8_t  gameover_anim_step;  // current step within build phase
+static bool     gameover_exit_armed; // true once a button was pressed (debounce)
+static uint16_t gameover_colors[GAMEOVER_ANIM_FRAMES][GAMEOVER_INDICES_PER_FRAME];
+
+static void palette_write_go(uint8_t index, uint16_t color)
+{
+    RIA.addr0 = PALETTE_ADDR + ((unsigned)index * 2u);
+    RIA.step0 = 1;
+    RIA.rw0 = color & 0xFF;
+    RIA.rw0 = color >> 8;
+}
+
+static void restore_full_palette(void)
+{
+    int i;
+    RIA.addr0 = PALETTE_ADDR;
+    RIA.step0 = 1;
+    for (i = 0; i < 256; i++) {
+        RIA.rw0 = tile_palette[i] & 0xFF;
+        RIA.rw0 = tile_palette[i] >> 8;
+    }
+}
+
+static void gameover_replace_tiles(void)
+{
+    uint8_t  x, y;
+    uint16_t i = 0;
+
+    // Snapshot the entire MAIN_MAP before making any changes
+    for (y = 0; y < MAIN_MAP_HEIGHT_TILES; ++y)
+        for (x = 0; x < MAIN_MAP_WIDTH_TILES; ++x)
+            gameover_main_map_snapshot[i++] = tilemap_read(MAIN_MAP_TILEMAP_DATA, x, y);
+    gameover_snapshot_valid = true;
+
+    // Apply replacement: 101 or 102 → 215; tile to the right → 216
+    i = 0;
+    for (y = 0; y < MAIN_MAP_HEIGHT_TILES; ++y) {
+        for (x = 0; x < MAIN_MAP_WIDTH_TILES; ++x) {
+            if (gameover_main_map_snapshot[i++] == 101 ||
+                gameover_main_map_snapshot[i - 1u] == 102) {
+                tilemap_write(MAIN_MAP_TILEMAP_DATA, x, y, 215);
+                if (x + 1u < MAIN_MAP_WIDTH_TILES)
+                    tilemap_write(MAIN_MAP_TILEMAP_DATA, (uint8_t)(x + 1u), y, 216);
+            }
+        }
+    }
+}
+
+static void gameover_restore_tiles(void)
+{
+    uint8_t  x, y;
+    uint16_t i = 0;
+
+    if (!gameover_snapshot_valid) return;
+    for (y = 0; y < MAIN_MAP_HEIGHT_TILES; ++y)
+        for (x = 0; x < MAIN_MAP_WIDTH_TILES; ++x)
+            tilemap_write(MAIN_MAP_TILEMAP_DATA, x, y, gameover_main_map_snapshot[i++]);
+    gameover_snapshot_valid = false;
+}
+
+static void gameover_palette_blackout(void)
+{
+    uint16_t i;
+    uint8_t  p;
+    bool     preserve;
+    for (i = 0; i < 256u; ++i) {
+        preserve = false;
+        for (p = 0; p < GAMEOVER_PRESERVE_COUNT; ++p) {
+            if (gameover_preserve_indices[p] == (uint8_t)i) {
+                preserve = true;
+                break;
+            }
+        }
+        if (!preserve)
+            palette_write_go((uint8_t)i, 0);
+    }
+}
+
+static void gameover_init_colors(void)
+{
+    uint8_t f, j;
+    for (f = 0; f < GAMEOVER_ANIM_FRAMES; ++f)
+        for (j = 0; j < GAMEOVER_INDICES_PER_FRAME; ++j)
+            gameover_colors[f][j] = tile_palette[gameover_frame_indices[f][j]];
+}
+
+static void gameover_write_frame_colors(uint8_t frame)
+{
+    uint8_t j;
+    for (j = 0; j < GAMEOVER_INDICES_PER_FRAME; ++j)
+        palette_write_go(gameover_frame_indices[frame][j], gameover_colors[frame][j]);
+}
+
+static void gameover_rotate_colors(void)
+{
+    uint16_t saved[GAMEOVER_INDICES_PER_FRAME];
+    uint8_t  f, j;
+    // Shift each frame's colors one step forward (wrapping last → first)
+    for (j = 0; j < GAMEOVER_INDICES_PER_FRAME; ++j)
+        saved[j] = gameover_colors[GAMEOVER_ANIM_FRAMES - 1u][j];
+    for (f = GAMEOVER_ANIM_FRAMES - 1u; f > 0u; --f)
+        for (j = 0; j < GAMEOVER_INDICES_PER_FRAME; ++j)
+            gameover_colors[f][j] = gameover_colors[f - 1u][j];
+    for (j = 0; j < GAMEOVER_INDICES_PER_FRAME; ++j)
+        gameover_colors[0][j] = saved[j];
+    // Write all updated groups to the palette
+    for (f = 0; f < GAMEOVER_ANIM_FRAMES; ++f)
+        gameover_write_frame_colors(f);
+}
+
+static void start_game_over_sequence(void)
+{
+    game_mode           = GAME_MODE_GAME_OVER;
+    gameover_stage      = 0;
+    gameover_timer      = 0;
+    gameover_anim_tick  = 0;
+    gameover_anim_step  = 0;
+    gameover_exit_armed = false;
+    music_enabled       = false;
+    starfield_freeze();
+    sound_play_destruction();
+    mothership_start_destruction();
+    asteroid_reset();
+    laser_init();
+    beasties_hide_all();
+    defense_hide();
+}
+
 static void start_demo_mode(void)
 {
     game_mode = GAME_MODE_DEMO;
+    gameover_restore_tiles();
+    restore_full_palette();
+    starfield_init();
     fire_start_armed = false;
     laser_fire_held = false;
     shield_points = SHIELD_START;
@@ -495,7 +665,7 @@ static bool game_over_if_shields_depleted(void)
     if (shield_points > 0)
         return false;
 
-    start_demo_mode();
+    start_game_over_sequence();
     return true;
 }
 
@@ -544,6 +714,44 @@ int main(void)
             } else if (fire_start_armed) {
                 start_gameplay_mode();
             }
+        }
+
+        if (game_mode == GAME_MODE_GAME_OVER) {
+            if (gameover_stage == 0) {
+                mothership_update();
+                if (mothership_consume_respawned_after_destruction()) {
+                    gameover_replace_tiles();
+                    gameover_palette_blackout();
+                    gameover_init_colors();
+                    gameover_stage      = 1;
+                    gameover_anim_step  = 0;
+                    gameover_anim_tick  = 0;
+                    gameover_timer      = 0;
+                }
+            } else {
+                if (++gameover_anim_tick >= GAMEOVER_ANIM_TICKS) {
+                    gameover_anim_tick = 0;
+                    if (gameover_stage == 1) {
+                        gameover_write_frame_colors(gameover_anim_step);
+                        if (++gameover_anim_step >= GAMEOVER_ANIM_FRAMES)
+                            gameover_stage = 2;
+                    } else {
+                        gameover_rotate_colors();
+                    }
+                }
+                ++gameover_timer;
+                bool any = is_action_pressed(0, ACTION_FIRE)         ||
+                           is_action_pressed(0, ACTION_THRUST)        ||
+                           is_action_pressed(0, ACTION_REVERSE_THRUST)||
+                           is_action_pressed(0, ACTION_ROTATE_LEFT)   ||
+                           is_action_pressed(0, ACTION_ROTATE_RIGHT);
+                if (any) {
+                    gameover_exit_armed = true;
+                } else if (gameover_exit_armed || gameover_timer >= GAMEOVER_TIMEOUT) {
+                    start_demo_mode();
+                }
+            }
+            continue;
         }
 
         if (game_mode == GAME_MODE_PLAYING && mothership_is_landed()) {

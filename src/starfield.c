@@ -1,4 +1,5 @@
 #include <rp6502.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "constants.h"
 #include "starfield.h"
@@ -25,6 +26,7 @@ static uint8_t star_flash_phase = 0;
 static uint8_t star_flash_tick = 0;
 static int8_t star_flash_dir = 1;
 static uint8_t star_flash_bright = 1;
+static bool star_flash_frozen = false;
 
 static uint16_t mix_rgb555(uint16_t a, uint16_t b, uint8_t wa, uint8_t wb)
 {
@@ -72,11 +74,18 @@ void starfield_init(void)
     star_flash_tick = 0;
     star_flash_dir = 1;
     star_flash_bright = 1;
+    star_flash_frozen = false;
     apply_star_flash_palette();
+}
+
+void starfield_freeze(void)
+{
+    star_flash_frozen = true;
 }
 
 void starfield_update(void)
 {
+    if (star_flash_frozen) return;
     if (++star_flash_tick < STAR_FLASH_TICKS) {
         return;
     }
