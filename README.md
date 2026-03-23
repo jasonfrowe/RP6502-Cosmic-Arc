@@ -1,6 +1,6 @@
 # Cosmic Arc for RP6502
 
-A modern reimagining of the 1982 Atari 2600 classic **Cosmic Ark** by Imagic, rewritten for the **Picocomputer 6502 (RP6502)** using the LLVM-MOS SDK.
+A modern reimagining of the 1982 Atari 2600 classic **Cosmic Ark** by Imagic, rewritten for the **[Picocomputer 6502 (RP6502)](https://picocomputer.github.io/)** using the LLVM-MOS SDK.
 
 ---
 
