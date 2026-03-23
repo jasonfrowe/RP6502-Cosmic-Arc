@@ -8,6 +8,8 @@ A modern reimagining of the 1982 Atari 2600 classic **Cosmic Ark** by Imagic, re
 
 The sun of Alpha Ro is fading fast! Soon it will flicker out. The Cosmic Ark races to save creatures from doomed planets in that solar system. Meteor showers bombard the Ark, threatening its Atlantean crew — and planetary defense systems make this mission of mercy doubly treacherous! Time and energy slip away. Work fast, or these defenceless little beasties will disappear for all time.
 
+![Gameplay of Cosmic Ark on RP6502](screenshots/RP6502-Cosmic-Ark_V1.gif)
+
 ---
 
 ## How to Play
