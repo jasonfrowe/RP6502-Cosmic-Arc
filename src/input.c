@@ -1,6 +1,7 @@
 #include <rp6502.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -39,26 +40,37 @@ bool is_any_input_pressed(void) {
 void reset_button_mappings(uint8_t player_id)
 {
     if (player_id >= GAMEPAD_COUNT) return;
-    
-    // ACTION_THRUST: Up Arrow or Left Stick Up
+
+    // Zero out all mappings for this player so secondary fields default to 0 (disabled)
+    memset(&button_mappings[player_id], 0, sizeof(button_mappings[player_id]));
+
+    // ACTION_THRUST: Up Arrow, Left Stick Up, or D-Pad Up
     button_mappings[player_id][ACTION_THRUST].keyboard_key = KEY_UP;
-    button_mappings[player_id][ACTION_THRUST].gamepad_button = GP_FIELD_STICKS; // sticks field
+    button_mappings[player_id][ACTION_THRUST].gamepad_button = GP_FIELD_STICKS;
     button_mappings[player_id][ACTION_THRUST].gamepad_mask = GP_LSTICK_UP;
-    
-    // ACTION_REVERSE_THRUST: Down Arrow or Left Stick Down
+    button_mappings[player_id][ACTION_THRUST].gamepad_button2 = GP_FIELD_DPAD;
+    button_mappings[player_id][ACTION_THRUST].gamepad_mask2 = GP_DPAD_UP;
+
+    // ACTION_REVERSE_THRUST: Down Arrow, Left Stick Down, or D-Pad Down
     button_mappings[player_id][ACTION_REVERSE_THRUST].keyboard_key = KEY_DOWN;
-    button_mappings[player_id][ACTION_REVERSE_THRUST].gamepad_button = GP_FIELD_STICKS; // sticks field
+    button_mappings[player_id][ACTION_REVERSE_THRUST].gamepad_button = GP_FIELD_STICKS;
     button_mappings[player_id][ACTION_REVERSE_THRUST].gamepad_mask = GP_LSTICK_DOWN;
-    
-    // ACTION_ROTATE_LEFT: Left Arrow or Left Stick Left
+    button_mappings[player_id][ACTION_REVERSE_THRUST].gamepad_button2 = GP_FIELD_DPAD;
+    button_mappings[player_id][ACTION_REVERSE_THRUST].gamepad_mask2 = GP_DPAD_DOWN;
+
+    // ACTION_ROTATE_LEFT: Left Arrow, Left Stick Left, or D-Pad Left
     button_mappings[player_id][ACTION_ROTATE_LEFT].keyboard_key = KEY_LEFT;
-    button_mappings[player_id][ACTION_ROTATE_LEFT].gamepad_button = GP_FIELD_STICKS; // sticks field
+    button_mappings[player_id][ACTION_ROTATE_LEFT].gamepad_button = GP_FIELD_STICKS;
     button_mappings[player_id][ACTION_ROTATE_LEFT].gamepad_mask = GP_LSTICK_LEFT;
-    
-    // ACTION_ROTATE_RIGHT: Right Arrow or Left Stick Right
+    button_mappings[player_id][ACTION_ROTATE_LEFT].gamepad_button2 = GP_FIELD_DPAD;
+    button_mappings[player_id][ACTION_ROTATE_LEFT].gamepad_mask2 = GP_DPAD_LEFT;
+
+    // ACTION_ROTATE_RIGHT: Right Arrow, Left Stick Right, or D-Pad Right
     button_mappings[player_id][ACTION_ROTATE_RIGHT].keyboard_key = KEY_RIGHT;
-    button_mappings[player_id][ACTION_ROTATE_RIGHT].gamepad_button = GP_FIELD_STICKS; // sticks field
+    button_mappings[player_id][ACTION_ROTATE_RIGHT].gamepad_button = GP_FIELD_STICKS;
     button_mappings[player_id][ACTION_ROTATE_RIGHT].gamepad_mask = GP_LSTICK_RIGHT;
+    button_mappings[player_id][ACTION_ROTATE_RIGHT].gamepad_button2 = GP_FIELD_DPAD;
+    button_mappings[player_id][ACTION_ROTATE_RIGHT].gamepad_mask2 = GP_DPAD_RIGHT;
     
     // ACTION_FIRE: Space or A button
     button_mappings[player_id][ACTION_FIRE].keyboard_key = KEY_SPACE;
@@ -213,7 +225,7 @@ bool is_action_pressed(uint8_t player_id, GameAction action)
         return false;
     }
     
-    // Check gamepad
+    // Check primary gamepad mapping
     uint8_t gamepad_value = 0;
     switch (mapping->gamepad_button) {
         case 0: gamepad_value = gamepad[player_id].dpad; break;
@@ -221,6 +233,19 @@ bool is_action_pressed(uint8_t player_id, GameAction action)
         case 2: gamepad_value = gamepad[player_id].btn0; break;
         case 3: gamepad_value = gamepad[player_id].btn1; break;
     }
-    
-    return (gamepad_value & mapping->gamepad_mask) != 0;
+    if (gamepad_value & mapping->gamepad_mask) return true;
+
+    // Check secondary gamepad mapping (e.g. D-pad alongside analog stick)
+    if (mapping->gamepad_mask2 != 0) {
+        uint8_t gamepad_value2 = 0;
+        switch (mapping->gamepad_button2) {
+            case 0: gamepad_value2 = gamepad[player_id].dpad; break;
+            case 1: gamepad_value2 = gamepad[player_id].sticks; break;
+            case 2: gamepad_value2 = gamepad[player_id].btn0; break;
+            case 3: gamepad_value2 = gamepad[player_id].btn1; break;
+        }
+        return (gamepad_value2 & mapping->gamepad_mask2) != 0;
+    }
+
+    return false;
 }

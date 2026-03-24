@@ -90,6 +90,8 @@ typedef struct {
     uint8_t keyboard_key;     // USB HID keycode
     uint8_t gamepad_button;   // Which gamepad field (0=dpad, 1=sticks, 2=btn0, 3=btn1)
     uint8_t gamepad_mask;     // Bit mask for the button
+    uint8_t gamepad_button2;  // Secondary gamepad field (same encoding)
+    uint8_t gamepad_mask2;    // Secondary bit mask (0 = no secondary mapping)
 } ButtonMapping;
 
 // Gamepad Field Offsets (for ButtonMapping.gamepad_button)
