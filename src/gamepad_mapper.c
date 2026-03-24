@@ -1,6 +1,5 @@
 /*
  * Gamepad Button Mapping Tool for Cosmic Arc
- * Walks through THRUST, REVERSE, LEFT, RIGHT, FIRE, SUPER, ALT, RESCUE, PAUSE
  */
 
 #include <rp6502.h>
@@ -13,15 +12,15 @@
 #define JOYSTICK_CONFIG_FILE "JOYSTICK_CA.DAT"
 
 static const char* prompt_labels[] = {
-    "THRUST (UP)",
-    "REVERSE (DOWN)",
-    "ROTATE LEFT",
-    "ROTATE RIGHT",
-    "FIRE",
-    "SUPER FIRE",
-    "ALT FIRE",
-    "RESCUE",
-    "PAUSE / START",
+    "UP",
+    "DOWN",
+    "LEFT",
+    "RIGHT",
+    "FIRE  (A)",
+    "BUTTON X",
+    "BUTTON Y",
+    "BUTTON B",
+    "START / PAUSE",
     NULL
 };
 
@@ -46,6 +45,23 @@ typedef struct {
 
 static JoystickMapping mappings[10];
 static uint8_t num_mappings = 0;
+
+static void wait_for_all_released(void)
+{
+    uint8_t vsync_last = RIA.vsync;
+    while (true) {
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
+
+        RIA.addr0 = GAMEPAD_INPUT;
+        RIA.step0 = 1;
+        uint8_t d  = RIA.rw0 & 0x0F;
+        uint8_t s  = RIA.rw0;
+        uint8_t b0 = RIA.rw0;
+        uint8_t b1 = RIA.rw0;
+        if (d == 0 && s == 0 && b0 == 0 && b1 == 0) return;
+    }
+}
 
 static bool wait_for_any_button(uint8_t* field, uint8_t* mask)
 {
@@ -102,6 +118,7 @@ int main(void)
     printf("Press any button to begin...\n");
     uint8_t f, m;
     wait_for_any_button(&f, &m);
+    wait_for_all_released();
 
     for (uint8_t i = 0; prompt_labels[i] != NULL; i++) {
         printf("PRESS: %s\n", prompt_labels[i]);
