@@ -123,6 +123,12 @@ static uint8_t depart_phase;
 
 static bool descent_skip_delay;
 
+// Per-channel idle tracking — used to fire one final stop_channel when all users
+// of a shared channel go quiet in the same frame (catches any edge-case hangs).
+static bool event_ch_was_active;
+static bool descent_ch_was_active;
+static bool laser_ch_was_active;
+
 static void sfx_note_on(uint8_t channel, const OPL_Patch* patch, uint8_t note, uint8_t volume)
 {
     OPL_NoteOff(channel);
@@ -131,9 +137,12 @@ static void sfx_note_on(uint8_t channel, const OPL_Patch* patch, uint8_t note, u
     OPL_NoteOn(channel, note);
 }
 
+// Sends NoteOff AND immediately zeros the carrier TL so the OPL release envelope
+// cannot produce audible sound regardless of how slow the patch's release rate is.
 static void stop_channel(uint8_t channel)
 {
     OPL_NoteOff(channel);
+    OPL_SetVolume(channel, 0);  // carrier TL=63; restored by next sfx_note_on
 }
 
 void sound_init(void)
@@ -167,6 +176,9 @@ void sound_init(void)
     descent_skip_delay     = false;
     lander_death_timer     = 0;
     lander_death_tick      = 0;
+    event_ch_was_active    = false;
+    descent_ch_was_active  = false;
+    laser_ch_was_active    = false;
 
     stop_channel(SFX_DESCENT_CH);
     stop_channel(SFX_LASER_CH);
@@ -181,17 +193,30 @@ void sound_play_laser(void)
 
 void sound_play_destruction(void)
 {
-    destruction_timer = DESTRUCTION_TOTAL_TICKS;
-    destruction_phase = 0;
-    descent_delay = 0;
-    descent_enabled = false;
-    asteroid_enabled = false;
+    destruction_timer  = DESTRUCTION_TOTAL_TICKS;
+    destruction_phase  = 0;
+    descent_delay      = 0;
+    descent_enabled    = false;
+    asteroid_enabled   = false;
+    laser_timer        = 0;
+    klaxon_timer       = 0;
+    capture_timer      = 0;
+    appear_timer       = 0;
+    depart_timer       = 0;
+    lander_death_timer = 0;
     stop_channel(SFX_DESCENT_CH);
     stop_channel(SFX_LASER_CH);
     stop_channel(SFX_EVENT_CH);
     beam_requested = false;
     beam_was_on    = false;
     beam_tick      = 0;
+    lander_motor_requested = false;
+    lander_motor_was_on    = false;
+    lander_motor_tick      = 0;
+    lander_motor_phase     = false;
+    event_ch_was_active   = false;
+    descent_ch_was_active = false;
+    laser_ch_was_active   = false;
 
     // Front-load the impact, then let the rest of the sequence dissolve.
     sfx_note_on(SFX_EVENT_CH, &drum_snare, 64, 127);
@@ -533,4 +558,21 @@ void sound_update(bool mothership_descending, bool asteroid_present)
     update_lander_motor_sound();
     update_beam_sound();
     update_capture_sound();
+
+    // Safety sweep: when a channel's last user goes quiet this frame, fire one
+    // final stop_channel so the OPL carrier cannot linger in its release phase.
+    {
+        bool event_active = (klaxon_timer > 0u) || (appear_timer > 0u) ||
+                            (depart_timer > 0u) || (capture_timer > 0u) || asteroid_enabled;
+        if (!event_active && event_ch_was_active)  stop_channel(SFX_EVENT_CH);
+        event_ch_was_active = event_active;
+
+        bool descent_active = descent_enabled || lander_motor_was_on || (lander_death_timer > 0u);
+        if (!descent_active && descent_ch_was_active) stop_channel(SFX_DESCENT_CH);
+        descent_ch_was_active = descent_active;
+
+        bool laser_active = (laser_timer > 0u) || beam_was_on;
+        if (!laser_active && laser_ch_was_active)  stop_channel(SFX_LASER_CH);
+        laser_ch_was_active = laser_active;
+    }
 }
