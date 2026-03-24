@@ -100,9 +100,12 @@ typedef struct {
 #define GP_FIELD_BTN0    2  // Face Buttons (A,B,X,Y)
 #define GP_FIELD_BTN1    3  // Triggers/Select/Start
 
+extern gamepad_t gamepad[GAMEPAD_COUNT];
+
 extern void init_input_system(void);
 extern void handle_input(void);
 extern bool is_action_pressed(uint8_t player_id, GameAction action);
+extern bool is_keyboard_action_pressed(GameAction action);
 extern bool is_any_input_pressed(void);
 
 #endif // INPUT_H

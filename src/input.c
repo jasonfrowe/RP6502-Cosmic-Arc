@@ -203,6 +203,16 @@ void handle_input(void)
 }
 
 /**
+ * Check if a game action's keyboard key is pressed (ignores gamepad).
+ * Useful when gamepad direction is handled separately via raw analog values.
+ */
+bool is_keyboard_action_pressed(GameAction action)
+{
+    if (action >= ACTION_COUNT) return false;
+    return key(button_mappings[0][action].keyboard_key) != 0;
+}
+
+/**
  * Check if a game action is active for a specific player
  */
 bool is_action_pressed(uint8_t player_id, GameAction action)

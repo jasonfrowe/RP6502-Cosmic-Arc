@@ -737,6 +737,34 @@ void process_audio_frame(void) {
     }
 }
 
+// Deadzone threshold for 4-way dominant-axis analog stick logic (0-127)
+#define ANALOG_4WAY_DEADZONE 32
+
+// In deep space, derive a single LaserDirection from the raw analog stick using
+// dominant-axis logic so diagonal deflections snap cleanly to one direction.
+// Falls back to D-pad when the stick is inside the deadzone.
+static LaserDirection get_laser_direction_4way(void)
+{
+    int8_t lx = gamepad[0].lx;
+    int8_t ly = gamepad[0].ly;
+    int8_t ax = lx < 0 ? (int8_t)-lx : lx;
+    int8_t ay = ly < 0 ? (int8_t)-ly : ly;
+
+    if (ax >= ANALOG_4WAY_DEADZONE || ay >= ANALOG_4WAY_DEADZONE) {
+        // Snap to dominant axis
+        if (ax >= ay) return lx > 0 ? LASER_RIGHT : LASER_LEFT;
+        else          return ly > 0 ? LASER_DOWN   : LASER_UP;
+    }
+
+    // Stick at centre — read D-pad (inherently 4-way)
+    if (gamepad[0].dpad & GP_DPAD_UP)    return LASER_UP;
+    if (gamepad[0].dpad & GP_DPAD_DOWN)  return LASER_DOWN;
+    if (gamepad[0].dpad & GP_DPAD_LEFT)  return LASER_LEFT;
+    if (gamepad[0].dpad & GP_DPAD_RIGHT) return LASER_RIGHT;
+
+    return LASER_NONE;
+}
+
 static bool game_over_if_shields_depleted(void)
 {
     if (shield_points > 0)
@@ -885,24 +913,36 @@ int main(void)
 
             bool fired = false;
 
-            // Laser fires only when the direction button is freshly pressed (not held
+            // Laser fires only when the direction is freshly pressed (not held
             // from the previous shot) and no laser is already active on screen.
             if (!lander_is_active()) {
-                bool any_dir = is_action_pressed(0, ACTION_THRUST) ||
-                               (!planet_surface_phase && is_action_pressed(0, ACTION_REVERSE_THRUST)) ||
-                               is_action_pressed(0, ACTION_ROTATE_LEFT) ||
-                               is_action_pressed(0, ACTION_ROTATE_RIGHT);
+                LaserDirection dir = LASER_NONE;
 
-                if (!any_dir) {
+                if (!planet_surface_phase && (gamepad[0].dpad & GP_CONNECTED)) {
+                    // Deep space + gamepad: 4-way dominant-axis from raw analog;
+                    // falls back to D-pad when stick is at centre.
+                    dir = get_laser_direction_4way();
+                    // Also honour keyboard (keyboard is inherently 4-way)
+                    if (dir == LASER_NONE) {
+                        if      (is_keyboard_action_pressed(ACTION_THRUST))         dir = LASER_UP;
+                        else if (is_keyboard_action_pressed(ACTION_REVERSE_THRUST)) dir = LASER_DOWN;
+                        else if (is_keyboard_action_pressed(ACTION_ROTATE_LEFT))    dir = LASER_LEFT;
+                        else if (is_keyboard_action_pressed(ACTION_ROTATE_RIGHT))   dir = LASER_RIGHT;
+                    }
+                } else {
+                    // Planet surface or keyboard-only: existing digital action logic
+                    if      (is_action_pressed(0, ACTION_THRUST))         dir = LASER_UP;
+                    else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) {
+                        if (!planet_surface_phase) dir = LASER_DOWN;
+                    }
+                    else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    dir = LASER_LEFT;
+                    else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   dir = LASER_RIGHT;
+                }
+
+                if (dir == LASER_NONE) {
                     laser_fire_held = false;
                 } else if (!laser_fire_held) {
-                    if      (is_action_pressed(0, ACTION_THRUST))         fired = laser_fire(LASER_UP);
-                    else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) {
-                        if (!planet_surface_phase) fired = laser_fire(LASER_DOWN);
-                    }
-                    else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    fired = laser_fire(LASER_LEFT);
-                    else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   fired = laser_fire(LASER_RIGHT);
-
+                    fired = laser_fire(dir);
                     if (fired) laser_fire_held = true;
                 }
             }
