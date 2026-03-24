@@ -1009,6 +1009,7 @@ int main(void)
         if (planet_surface_phase && mothership_is_landed() && game_mode == GAME_MODE_PLAYING) {
             if (defense_update()) {
                 lander_respawn();
+                laser_fire_held = true;  // block laser until all directions released after respawn
                 shield_points -= SHIELD_LANDER_DEATH_LOSS;
                 draw_shield_bar();
                 if (game_over_if_shields_depleted())

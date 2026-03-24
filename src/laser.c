@@ -8,6 +8,14 @@
 #define LASER_SPEED      6
 #define LASER_HALF_SIZE  16   // 32x32 sprite half-width
 
+// Mothership body pixel edges — derived from tile layout (X0=12, X1=27, Y0=9, Y1=11, LAND_Y=16)
+// Used to spawn the laser at the ship's exit edge so it emerges cleanly rather than
+// travelling invisibly from the center.
+#define LASER_SHIP_LEFT   96    // MOTHERSHIP_TILE_X0 * 8
+#define LASER_SHIP_RIGHT  224   // (MOTHERSHIP_TILE_X1 + 1) * 8
+#define LASER_SHIP_TOP    88    // MOTHERSHIP_LAND_Y + MOTHERSHIP_TILE_Y0 * 8
+#define LASER_SHIP_BOTTOM 112   // MOTHERSHIP_LAND_Y + (MOTHERSHIP_TILE_Y1 + 1) * 8
+
 // Frame 0: left/right (horizontal beam)
 // Frame 1: up/down   (vertical beam)
 // Each frame: 32 * 32 * 2 bytes (16-bit RGB555)
@@ -46,25 +54,35 @@ bool laser_fire(LaserDirection dir)
         return false;
 
     laser_active = true;
-    laser_x = MOTHERSHIP_X - LASER_HALF_SIZE;
-    laser_y = MOTHERSHIP_Y - LASER_HALF_SIZE;
     laser_dx = 0;
     laser_dy = 0;
 
     switch (dir) {
         case LASER_UP:
+            // Sprite top aligned to ship top; centered horizontally — moves up
+            laser_x = MOTHERSHIP_X - LASER_HALF_SIZE;
+            laser_y = LASER_SHIP_TOP;
             laser_dy = -LASER_SPEED;
             xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LASER_FRAME_VERT);
             break;
         case LASER_DOWN:
+            // Sprite bottom aligned to ship bottom; centered horizontally — moves down
+            laser_x = MOTHERSHIP_X - LASER_HALF_SIZE;
+            laser_y = LASER_SHIP_BOTTOM - LASER_HALF_SIZE * 2;
             laser_dy = LASER_SPEED;
             xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LASER_FRAME_VERT);
             break;
         case LASER_LEFT:
+            // Sprite left aligned to ship left; centered vertically — moves left
+            laser_x = LASER_SHIP_LEFT;
+            laser_y = MOTHERSHIP_Y - LASER_HALF_SIZE;
             laser_dx = -LASER_SPEED;
             xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LASER_FRAME_HORIZ);
             break;
         case LASER_RIGHT:
+            // Sprite right aligned to ship right; centered vertically — moves right
+            laser_x = LASER_SHIP_RIGHT - LASER_HALF_SIZE * 2;
+            laser_y = MOTHERSHIP_Y - LASER_HALF_SIZE;
             laser_dx = LASER_SPEED;
             xram0_struct_set(LASER_CONFIG, vga_mode4_sprite_t, xram_sprite_ptr, LASER_FRAME_HORIZ);
             break;
