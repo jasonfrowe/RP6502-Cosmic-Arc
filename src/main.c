@@ -922,12 +922,15 @@ int main(void)
                     // Deep space + gamepad: 4-way dominant-axis from raw analog;
                     // falls back to D-pad when stick is at centre.
                     dir = get_laser_direction_4way();
-                    // Also honour keyboard (keyboard is inherently 4-way)
+                    // If neither analog nor D-pad fired, try the custom-mapped
+                    // buttons from JOYSTICK_CA.DAT (handles odd/non-standard
+                    // gamepads that report directions via sticks bits, BTN0, etc.).
+                    // is_action_pressed also covers keyboard, so no separate check needed.
                     if (dir == LASER_NONE) {
-                        if      (is_keyboard_action_pressed(ACTION_THRUST))         dir = LASER_UP;
-                        else if (is_keyboard_action_pressed(ACTION_REVERSE_THRUST)) dir = LASER_DOWN;
-                        else if (is_keyboard_action_pressed(ACTION_ROTATE_LEFT))    dir = LASER_LEFT;
-                        else if (is_keyboard_action_pressed(ACTION_ROTATE_RIGHT))   dir = LASER_RIGHT;
+                        if      (is_action_pressed(0, ACTION_THRUST))         dir = LASER_UP;
+                        else if (is_action_pressed(0, ACTION_REVERSE_THRUST)) dir = LASER_DOWN;
+                        else if (is_action_pressed(0, ACTION_ROTATE_LEFT))    dir = LASER_LEFT;
+                        else if (is_action_pressed(0, ACTION_ROTATE_RIGHT))   dir = LASER_RIGHT;
                     }
                 } else {
                     // Planet surface or keyboard-only: existing digital action logic
