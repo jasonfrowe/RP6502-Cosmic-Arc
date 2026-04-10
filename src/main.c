@@ -811,8 +811,8 @@ int main(void)
         // Get Input from Keyboard/Gamepad
         handle_input();
 
-        // ESC exits the game cleanly
-        if (key(KEY_ESC)) return 0;
+        // ALT+F4 exits the game cleanly
+        if ((key(KEY_LEFTALT) || key(KEY_RIGHTALT)) && key(KEY_F4)) return 0;
 
         if (game_mode == GAME_MODE_DEMO) {
             bool fire_pressed = is_action_pressed(0, ACTION_FIRE);
